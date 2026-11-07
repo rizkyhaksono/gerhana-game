@@ -2,15 +2,15 @@ import {
   applyAction, autoPick, botAction, botPicks, createRun, validatePicks,
   type CombatState, type Pick, type RunAction, type RunState,
 } from "@gerhana/rules";
-import { cardView, runView, stateView, type ServerMsg } from "./protocol";
+import { cardView, eventsView, runView, stateView, type ServerMsg } from "./protocol";
 
 export type Send = (m: ServerMsg) => void;
-interface Seat { name: string; send: Send | null; bot: boolean }
+interface Seat { name: string; send: Send | null; bot: boolean; token: string; grace: ReturnType<typeof setTimeout> | null }
 
 /**
- * One co-op run for two seats. A seat with no connection plays as a bot, so a lone player can
- * run with a bot partner and a dropped player never blocks the other.
- * shortcut: no reconnect token and no 2-minute grace yet (GDD §6.4); add before public playtests.
+ * One co-op run for two seats. A dropped player keeps their seat for a grace period and can come
+ * back with their token (GDD §6.4); after that the bot plays the seat so the partner can finish.
+ * A lone player can also start with a bot partner.
  */
 export class Room {
   seats: [Seat | null, Seat | null] = [null, null];
@@ -19,13 +19,19 @@ export class Room {
   private rngSeed: number;
   private rng: ReturnType<typeof createRun>["rng"] | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private phaseTimer: ReturnType<typeof setTimeout> | null = null;
+  private phaseKey = "";
   private readonly turnMs: number;
+  private readonly phaseMs: number;
+  readonly graceMs: number;
   private shownTurn = -1;
   private runs = 0;
 
-  constructor(readonly code: string, seed: number, opts: { turnMs?: number } = {}) {
+  constructor(readonly code: string, seed: number, opts: { turnMs?: number; phaseMs?: number; graceMs?: number } = {}) {
     this.rngSeed = seed;
     this.turnMs = opts.turnMs ?? 30_000;
+    this.phaseMs = opts.phaseMs ?? 60_000; // map, reward, rest and shop
+    this.graceMs = opts.graceMs ?? 120_000;
   }
 
   get combat(): CombatState | null {
@@ -35,19 +41,52 @@ export class Room {
   join(name: string, send: Send | null, bot = false): 0 | 1 | "FULL" {
     const id = this.seats[0] === null ? 0 : this.seats[1] === null ? 1 : null;
     if (id === null) return "FULL";
-    this.seats[id] = { name, send, bot };
+    this.seats[id] = { name, send, bot, token: crypto.randomUUID(), grace: null };
     this.broadcastRoom();
     if (this.seats[0] && this.seats[1]) this.startRun();
     return id;
   }
 
-  /** The player's connection closed: the bot takes the seat so the partner can finish. */
+  /** The player's connection closed: hold the seat for the grace period, then hand it to the bot. */
   leave(id: 0 | 1) {
     const seat = this.seats[id];
     if (!seat) return;
     seat.send = null;
-    seat.bot = true;
-    if (this.run && !this.empty) this.sync(); // nobody left watching: don't let two bots play the run out
+    const toBot = () => {
+      seat.grace = null;
+      seat.bot = true;
+      if (this.run && !this.empty) this.sync(); // nobody left watching: don't let two bots play the run out
+    };
+    if (this.graceMs > 0) seat.grace = setTimeout(toBot, this.graceMs);
+    else toBot();
+  }
+
+  /** Reconnect with the token from room_state. Returns the seat, or null for an unknown token. */
+  rejoin(token: string, send: Send): 0 | 1 | null {
+    const id = this.seats.findIndex((s) => s?.token === token);
+    if (id < 0) return null;
+    const seat = this.seats[id]!;
+    if (seat.grace) clearTimeout(seat.grace);
+    seat.grace = null;
+    seat.send = send;
+    seat.bot = false;
+    this.broadcastRoom();
+    if (this.run) {
+      const c = this.combat;
+      if (c) {
+        this.send(id as 0 | 1, { type: "turn_start", turn: c.turn, turnMs: this.turnMs, hand: c.players[id].hand.map(cardView), state: stateView(c, this.names()) });
+      } else {
+        this.send(id as 0 | 1, { type: "run_state", run: { ...runView(this.run, this.names(), id as 0 | 1), phaseMs: this.phaseMs } });
+      }
+    }
+    return id as 0 | 1;
+  }
+
+  /** Mark an enemy for the partner (GDD §4.4). */
+  ping(id: 0 | 1, uid: string) {
+    const e = this.combat?.enemies.find((x) => x.uid === uid && x.hp > 0 && !x.fled);
+    if (!e) return this.send(id, { type: "error", code: "BAD_TARGET" });
+    this.send((1 - id) as 0 | 1, { type: "ping", from: id, target: uid });
   }
 
   get empty() {
@@ -80,6 +119,9 @@ export class Room {
   dispose() {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    if (this.phaseTimer) clearTimeout(this.phaseTimer);
+    this.phaseTimer = null;
+    for (const s of this.seats) if (s?.grace) clearTimeout(s.grace);
   }
 
   // --- internals -------------------------------------------------------------------
@@ -92,7 +134,7 @@ export class Room {
 
   private broadcastRoom() {
     for (const id of [0, 1] as const) {
-      this.send(id, { type: "room_state", code: this.code, you: id, names: this.seats.map((s) => s?.name ?? null) });
+      this.send(id, { type: "room_state", code: this.code, you: id, token: this.seats[id]?.token, names: this.seats.map((s) => s?.name ?? null) });
     }
   }
 
@@ -112,6 +154,9 @@ export class Room {
       return false;
     }
     this.run = r.state;
+    for (const e of r.events) {
+      if (e.t === "coinFlip") for (const s of [0, 1] as const) this.send(s, { type: "coin_flip", choice: e.choice });
+    }
     this.sync();
     return true;
   }
@@ -125,7 +170,7 @@ export class Room {
     this.run = r.state;
     const after = this.combat;
     const view = after ? stateView(after, this.names()) : null;
-    for (const id of [0, 1] as const) this.send(id, { type: "turn_resolved", events: r.events, state: view });
+    for (const id of [0, 1] as const) this.send(id, { type: "turn_resolved", events: eventsView(r.events), state: view });
     if (!after) {
       const lost = this.run.phase.kind === "ended" && this.run.phase.result === "lost";
       for (const id of [0, 1] as const) this.send(id, { type: "combat_end", outcome: lost ? "lost" : "won" });
@@ -153,7 +198,8 @@ export class Room {
       return;
     }
     this.shownTurn = -1;
-    for (const id of [0, 1] as const) this.send(id, { type: "run_state", run: runView(run, this.names(), id) });
+    this.armPhaseTimer(run);
+    for (const id of [0, 1] as const) this.send(id, { type: "run_state", run: { ...runView(run, this.names(), id), phaseMs: this.phaseMs } });
     for (const id of [0, 1] as const) {
       if (this.run !== run) return; // a bot action already moved the run on and re-synced
       const a = this.isBot(id) ? this.botAction(id) : null;
@@ -161,15 +207,38 @@ export class Room {
     }
   }
 
+  /** A seat only plays itself when it is a bot; a dropped human keeps it until the grace period ends. */
   private isBot(id: 0 | 1) {
-    const s = this.seats[id];
-    return !!s && (s.bot || !s.send);
+    return !!this.seats[id]?.bot;
+  }
+
+  /** A new map/reward/rest/shop phase starts its clock; whoever has not acted when it rings is played for. */
+  private armPhaseTimer(run: RunState) {
+    const key = `${run.phase.kind}:${run.step}`;
+    if (key === this.phaseKey || run.phase.kind === "ended") return;
+    this.phaseKey = key;
+    if (this.phaseTimer) clearTimeout(this.phaseTimer);
+    this.phaseTimer = null;
+    if (this.phaseMs > 0) this.phaseTimer = setTimeout(() => this.phaseTimeout(key), this.phaseMs);
+  }
+
+  private phaseTimeout(key: string) {
+    this.phaseTimer = null;
+    for (let guard = 0; guard < 20 && this.run && this.phaseKey === key; guard++) {
+      const id = ([0, 1] as const).find((s) => this.botAction(s, true));
+      if (id === undefined) return;
+      const ph = this.run.phase;
+      const a = ph.kind === "shop" ? ({ kind: "leave", player: id } as RunAction) : this.botAction(id, true)!;
+      if (!this.apply(id, a)) return;
+    }
   }
 
   /** Bot seat: the rules package's bot, which follows a human's map vote and plays carefully. */
-  private botAction(id: 0 | 1): RunAction | null {
+  private botAction(id: 0 | 1, timedOut = false): RunAction | null {
     const ph = this.run!.phase;
-    if (ph.kind === "vote" && (ph.votes[id] !== null || (ph.votes[1 - id] === null && !this.isBot((1 - id) as 0 | 1)))) return null;
+    if (ph.kind === "combat" || ph.kind === "ended") return null; // fights use botPicks, never a phase timeout
+    if (ph.kind === "vote" && ph.votes[id] !== null) return null;
+    if (ph.kind === "vote" && !timedOut && ph.votes[1 - id] === null && !this.isBot((1 - id) as 0 | 1)) return null;
     if ((ph.kind === "reward" || ph.kind === "rest" || ph.kind === "shop") && ph.done[id]) {
       return ph.kind === "reward" && ph.pusakaOffer && ph.pusakaChooser === id ? botAction(this.run!, id, this.rng!) : null;
     }

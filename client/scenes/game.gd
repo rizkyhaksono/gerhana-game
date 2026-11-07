@@ -3,7 +3,8 @@ extends Node2D
 ## This scene draws the menu, the run screens (map vote, reward, rest, shop, end) and combat,
 ## collects the player's choices and animates the events the server sends back.
 
-const SERVER_URL := "ws://127.0.0.1:8787"
+## Change in Project Settings > Gerhana > Server Url (e.g. ws://192.168.1.10:8787 for a phone on the same Wi-Fi).
+var server_url: String = ProjectSettings.get_setting("gerhana/server_url", "ws://127.0.0.1:8787")
 const GROUND := 112      # feet line inside the background art
 const LIFT := 24         # the combat world is drawn this much higher to make room for the hand
 const HERO_X := [42, 80]
@@ -33,6 +34,7 @@ const ERRORS := {
 
 ## Smoke test: GERHANA_AUTOPLAY=1 starts a bot run and plays it alone; GERHANA_SHOTS=<dir> saves a screenshot per screen.
 var autoplay := OS.get_environment("GERHANA_AUTOPLAY") == "1"
+var demo := OS.get_environment("GERHANA_DEMO") == "1"  # autoplay at normal speed, for recording previews
 var shots_dir := OS.get_environment("GERHANA_SHOTS")
 var shot_n := 0
 
@@ -43,6 +45,13 @@ var inbox: Array = []
 var busy := false
 
 var you := 0
+var room_code := ""          # with token: lets us rejoin the same seat after a drop (GDD §6.4)
+var token := ""
+var reconnecting := false
+var phase_ms := 0
+var phase_started := 0
+var phase_label: Label
+var intro_shown := false
 var run := {}                # RunView
 var state := {}              # combat StateView
 var hand: Array = []
@@ -53,6 +62,8 @@ var turn := 0
 var turn_ms := 30000
 var turn_started := 0
 
+var music: AudioStreamPlayer
+var music_name := ""
 var root: Control            # everything that is not the combat world
 var world: Node2D
 var actors := {}             # "p0" / "e1" -> {node, rect, fill, hp, intent, chips}
@@ -87,7 +98,13 @@ func _process(_dt: float) -> void:
 			_pump()
 	elif st == WebSocketPeer.STATE_CLOSED and was_open:
 		was_open = false
-		_show_menu("Koneksi ke server terputus. Pastikan server menyala, lalu coba lagi.")
+		if room_code != "" and token != "" and not reconnecting:
+			_reconnect()
+		elif not reconnecting:
+			_show_menu("Koneksi ke server terputus. Pastikan server menyala, lalu coba lagi.")
+	if phase_label and phase_ms > 0:
+		var left := maxi(0, phase_ms - (Time.get_ticks_msec() - phase_started)) / 1000
+		phase_label.text = "%d dtk" % left
 	if timer_sprite and turn_ms > 0:
 		var t := float(Time.get_ticks_msec() - turn_started) / turn_ms
 		timer_sprite.frame = clampi(int(t * 8), 0, 7)
@@ -99,7 +116,7 @@ func _connect_and_send(msg: Dictionary) -> void:
 	ws = WebSocketPeer.new()
 	was_open = false
 	first_msg = msg
-	if ws.connect_to_url(SERVER_URL) != OK:
+	if ws.connect_to_url(server_url) != OK:
 		_status("Alamat server tidak valid.")
 		return
 	_status("Menghubungkan ke server…")
@@ -107,6 +124,40 @@ func _connect_and_send(msg: Dictionary) -> void:
 	if not was_open and world == null and ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		ws.close()
 		_status("Server tidak menjawab. Jalankan: bun packages/server/src/server.ts")
+
+
+## Try to get the same seat back for two minutes, the time the server holds it.
+func _reconnect() -> void:
+	reconnecting = true
+	for i in 60:
+		_notice("Koneksi putus. Menyambung ulang… (%d)" % (i + 1))
+		ws = WebSocketPeer.new()
+		was_open = false
+		first_msg = {"type": "join_room", "code": room_code, "token": token, "name": "Pemain"}
+		ws.connect_to_url(server_url)
+		await get_tree().create_timer(2.0).timeout
+		if ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
+			reconnecting = false
+			_notice("Tersambung lagi.")
+			return
+	reconnecting = false
+	room_code = ""
+	_show_menu("Tidak bisa tersambung lagi ke server.")
+
+
+func _notice(text: String) -> void:
+	if prompt:
+		prompt.text = text
+	elif status_line:
+		status_line.text = text
+
+
+func _leave_room() -> void:
+	room_code = ""
+	token = ""
+	ws.close()
+	was_open = false
+	_show_menu()
 
 
 func _send(msg: Dictionary) -> void:
@@ -124,12 +175,21 @@ func _handle(m: Dictionary) -> void:
 	match m.type:
 		"room_state":
 			you = int(m.you)
+			room_code = m.code
+			token = m.get("token", "")
 			if m.names[1] == null:
 				_status("Kode room: %s. Bagikan ke temanmu, lalu tunggu dia bergabung." % m.code)
 		"run_state":
 			run = m.run
+			phase_ms = int(run.get("phaseMs", 0))
+			phase_started = Time.get_ticks_msec()
 			if run.phase.kind != "combat":
 				_show_run()
+				if run.phase.kind == "vote" and int(run.phase.step) == 0 and not intro_shown:
+					intro_shown = true
+					_story("Bulan mulai ditelan Batara Kala. Bila gerhana sempurna sebelum fajar, gerbang alam gaib terbuka. Kalian berdua masuk ke Hutan Larangan untuk menghentikannya.")
+				elif run.phase.kind == "ended":
+					intro_shown = false
 				await _shot()
 				if autoplay:
 					_autoplay_run()
@@ -155,7 +215,15 @@ func _handle(m: Dictionary) -> void:
 				if autoplay:
 					_autoplay_turn()
 			if state.turn == 1:
+				if _has_boss():
+					_story("Banaspati menjaga gerbang. Fajar tinggal sebentar lagi.")
 				await _shot()
+		"ping":
+			if world:
+				_show_ping(m.target, false)
+				_prompt("Rekan menandai %s." % _name_of({"kind": "enemy", "uid": m.target}))
+		"coin_flip":
+			await _coin_flip(int(m.choice))
 		"partner_ready":
 			if int(m.player) != you and not sent:
 				_prompt("Rekan sudah siap. Pilih 2 kartu.")
@@ -171,6 +239,11 @@ func _handle(m: Dictionary) -> void:
 		"error":
 			if m.code == "STALE_TURN":
 				return  # our picks arrived after the timer played for us; the new turn is already on screen
+			if m.code in ["BAD_TOKEN", "NO_ROOM"] and reconnecting:
+				reconnecting = false
+				room_code = ""
+				_show_menu("Room sudah tidak ada. Mulai permainan baru.")
+				return
 			var text: String = ERRORS.get(m.code, "Server menolak aksi itu (%s)." % m.code)
 			if world:
 				_prompt(text)
@@ -184,8 +257,10 @@ func _handle(m: Dictionary) -> void:
 # --- shared layout -------------------------------------------------------------------
 
 func _clear_all() -> void:
+	phase_label = null
 	for c in get_children():
-		c.queue_free()
+		if c != music:  # music keeps playing across screens
+			c.queue_free()
 	root = null
 	world = null
 	timer_sprite = null
@@ -193,6 +268,27 @@ func _clear_all() -> void:
 	prompt = null
 	ready_button = null
 	actors.clear()
+
+
+## Loop one of art/music.py's tracks; switching to the track already playing does nothing.
+func _music(track: String) -> void:
+	if music == null:
+		music = AudioStreamPlayer.new()
+		music.volume_db = -10.0
+		add_child(music)
+		AudioServer.set_bus_mute(0, autoplay)  # smoke tests stay silent
+	if track == music_name:
+		return
+	music_name = track
+	var stream: AudioStreamMP3 = load("res://assets/audio/%s.mp3" % track)
+	stream.loop = true
+	music.stream = stream
+	music.play()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.pressed and not event.echo and event.keycode == KEY_M:
+		AudioServer.set_bus_mute(0, not AudioServer.is_bus_mute(0))
 
 
 func _new_root(backdrop: String) -> void:
@@ -241,6 +337,8 @@ func _party() -> void:
 
 func _show_menu(message := "") -> void:
 	_new_root("layar_menu")
+	_music("musik_peta")
+	_add(Art.label("M: musik on/off", Vector2(4, 4), 100, Art.KABUT, Art.TEXT, HORIZONTAL_ALIGNMENT_LEFT, Color.TRANSPARENT))
 	_add(Art.label("Gerhana", Vector2(0, 70), 320, Art.PRADA, Art.TEXT * 3, HORIZONTAL_ALIGNMENT_CENTER, Art.DARAH))
 	_add(Art.label("Dua pendekar, satu malam. Hentikan gerhana sebelum fajar.", Vector2(0, 100), 320, Art.PERAK, Art.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	_menu_list([
@@ -252,12 +350,12 @@ func _show_menu(message := "") -> void:
 
 
 ## Vertical list of text buttons with a ▸ cursor that follows hover and keyboard focus.
-func _menu_list(items: Array) -> void:
-	var cursor := _add(Art.label("▸", Vector2(104, 0), 8, Art.PRADA))
+func _menu_list(items: Array, top := 118) -> void:
+	var cursor := _add(Art.label("▸", Vector2(94, 0), 8, Art.PRADA))
 	var first: Button
 	for i in items.size():
-		var b := Art.text_button(items[i][0], Vector2(114, 118 + i * 13), 110, items[i][1])
-		var y := 118 + i * 13 + 1
+		var b := Art.text_button(items[i][0], Vector2(104, top + i * 13), 150, items[i][1])
+		var y := top + i * 13 + 1
 		b.mouse_entered.connect(func(): b.grab_focus())
 		b.focus_entered.connect(func(): cursor.position.y = y)
 		_add(b)
@@ -295,12 +393,14 @@ func _show_run() -> void:
 		_show_ended()
 		return
 	_new_root("peta")
+	_music("musik_peta")
 	var dim := ColorRect.new()  # quiet the batik so text and icons read first
 	dim.color = Color(Art.MALAM, 0.6)
 	dim.size = Vector2(320, 180)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_add(dim)
 	status_line = _add(Art.label("", Vector2(0, 138), 320, Art.PUTIH, Art.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+	phase_label = _add(Art.label("", Vector2(262, 8), 52, Art.KABUT, Art.TEXT, HORIZONTAL_ALIGNMENT_RIGHT))
 	match kind:
 		"vote": _show_vote()
 		"reward": _show_reward()
@@ -447,16 +547,20 @@ func _show_ended() -> void:
 	var ph: Dictionary = run.phase
 	var won: bool = ph.result == "won"
 	_new_root("layar_won" if won else "layar_lost")
+	_music("musik_peta")
 	_add(Art.label("Gerhana dicegah" if won else "Gerhana sempurna", Vector2(0, 74), 320, Art.PRADA if won else Art.MERAH, Art.TEXT * 2, HORIZONTAL_ALIGNMENT_CENTER, Art.MALAM))
 	var line := "Banaspati tumbang sebelum fajar. Desa selamat." if won else "Kalian tumbang di langkah %d dari %d." % [int(ph.stepReached), int(run.steps) + 1]
 	_add(Art.label(line, Vector2(0, 96), 320, Art.PUTIH, Art.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+	var summary: Array = run.get("summary", {}).get("players", [])
+	for i in summary.size():
+		var p: Dictionary = summary[i]
+		var who: String = run.players[i].character.capitalize() + (" (kamu)" if i == you else "")
+		var fav: String = "kartu favorit %s" % p.favorite if p.favorite != null else "belum main kartu"
+		_add(Art.label("%s: %d damage, %s" % [who, int(p.damage), fav], Vector2(0, 108 + i * 10), 320, Art.PERAK, Art.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	_menu_list([
 		["Main lagi bersama rekan yang sama", func(): _send({"type": "play_again"})],
-		["Kembali ke menu", func():
-			ws.close()
-			was_open = false
-			_show_menu()],
-	])
+		["Kembali ke menu", _leave_room],
+	], 136)
 	if autoplay:
 		print("AUTOPLAY RUN: ", ph.result, " step=", int(ph.stepReached))
 
@@ -472,6 +576,7 @@ func _show_combat() -> void:
 	for e in state.get("enemies", []):
 		boss = boss or e.defId == "banaspati"
 	world.add_child(Art.sprite("backgrounds/" + ("arena_banaspati" if boss else "hutan_larangan"), Vector2.ZERO))
+	_music("musik_boss" if boss else "musik_combat")
 	root = Control.new()
 	root.theme = Art.theme()
 	root.size = Vector2(320, 180)
@@ -776,9 +881,19 @@ func _living_enemies() -> Array:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if pending.is_empty() or not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+	if not (event is InputEventMouseButton and event.pressed) or world == null:
 		return
 	var pos := get_global_mouse_position()
+	if pending.is_empty() or event.button_index == MOUSE_BUTTON_RIGHT:
+		for key in _living_enemies():
+			if actors[key].rect.grow(3).has_point(pos):
+				_send({"type": "ping", "target": key})
+				_show_ping(key, true)
+				_prompt("Kamu menandai %s untuk rekan." % _name_of({"kind": "enemy", "uid": key}))
+				return
+		return
+	if event.button_index != MOUSE_BUTTON_LEFT:
+		return
 	for key in actors:
 		if not actors[key].rect.grow(3).has_point(pos):
 			continue
@@ -809,15 +924,44 @@ func _key(t: Dictionary) -> String:
 	return "p%d" % int(t.id) if t.kind == "player" else t.uid
 
 
+func _name_of(t: Dictionary) -> String:
+	if t.kind == "player":
+		var p: Dictionary = state.players[int(t.id)]
+		return "%s%s" % [p.character.capitalize(), " (kamu)" if int(t.id) == you else ""]
+	for e in state.enemies:
+		if e.uid == t.uid:
+			return e.name
+	return "?"
+
+
+## Who acted shows its attack animation first, and the top bar says who did what to whom,
+## so a hit on your partner never looks like it came from your own card.
+func _actor_acts(from) -> void:
+	if from == null:
+		return
+	var a = actors.get(_key(from))
+	if a:
+		a.node.play("attack")
+
+
 func _animate(events: Array) -> void:
 	for e in events:
 		match e.t:
 			"card":
+				var who := _name_of({"kind": "player", "id": e.player})
+				_prompt("%s: %s → %s" % [who, e.get("name", e.defId), _name_of(e.target)])
 				var a = actors.get("p%d" % int(e.player))
 				if a and e.target.kind == "enemy":
 					a.node.play("attack")
-				await _wait(STEP * 0.6)
+				await _wait(STEP * 0.8)
 			"damage":
+				var from = e.get("from")
+				if from != null and from.kind == "enemy":
+					_prompt("%s menyerang %s" % [_name_of(from), _name_of(e.to)])
+					_actor_acts(from)
+					await _wait(STEP * 0.5)
+				elif from == null:
+					_prompt("%s terbakar" % _name_of(e.to))
 				var a = actors.get(_key(e.to))
 				if a:
 					a.node.play("hit")
@@ -832,9 +976,14 @@ func _animate(events: Array) -> void:
 				_float(actors.get("p%d" % int(e.player)), "wayang %d" % int(e.hp), Art.PRADA)
 				await _wait(STEP * 0.6)
 			"status":
+				if e.from.kind == "enemy":
+					_prompt("%s: %s %d → %s" % [_name_of(e.from), STATUS_NAME.get(e.status, e.status), int(e.stacks), _name_of(e.to)])
+					_actor_acts(e.from)
+					await _wait(STEP * 0.4)
 				_float(actors.get(_key(e.to)), "%s %d" % [STATUS_NAME.get(e.status, e.status), int(e.stacks)], Art.GAIB)
 				await _wait(STEP * 0.6)
 			"steal":
+				_prompt("%s mencuri %d koin dari %s" % [_name_of({"kind": "enemy", "uid": e.enemy}), int(e.amount), _name_of({"kind": "player", "id": e.player})])
 				_float(actors.get("p%d" % int(e.player)), "-%d koin" % int(e.amount), Art.PRADA)
 				await _wait(STEP)
 			"coinsReturned":
@@ -852,10 +1001,77 @@ func _animate(events: Array) -> void:
 					_float(a, "Pingsan", Art.MERAH)
 					a.node.modulate = Color(0.45, 0.45, 0.55)
 				await _wait(STEP)
+	_prompt("")
+
+
+func _show_ping(uid: String, mine: bool) -> void:
+	var a = actors.get(uid)
+	if a == null:
+		return
+	var icon := TextureRect.new()
+	icon.texture = Art.tex("icons/ping")
+	icon.position = a.rect.position + Vector2(a.rect.size.x / 2 - 6, a.rect.size.y / 2 - 6)
+	icon.modulate = Art.GAIB if not mine else Art.PRADA
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_add(icon)
+	var tw := create_tween()
+	tw.tween_property(icon, "scale", Vector2(1.2, 1.2), 0.15)
+	tw.tween_property(icon, "scale", Vector2.ONE, 0.15)
+	tw.tween_interval(2.5)
+	tw.tween_property(icon, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(icon.queue_free)
+
+
+## Votes differed: show a kepeng spinning, then land on the option the server's coin chose.
+func _coin_flip(choice: int) -> void:
+	if root == null or run.is_empty() or run.phase.kind != "vote":
+		return
+	var coin := TextureRect.new()
+	coin.texture = Art.tex("icons/koin")
+	coin.position = Vector2(154, 128)
+	coin.pivot_offset = Vector2(6, 6)
+	_add(coin)
+	_notice("Pilihan kalian beda. Lempar koin…")
+	var tw := create_tween()
+	tw.tween_property(coin, "scale:x", -1.0, 0.12).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(coin, "scale:x", 1.0, 0.12).set_trans(Tween.TRANS_SINE)
+	tw.set_loops(4)
+	await _wait(1.0)
+	tw.kill()
+	_notice("Koin memilih %s." % NODE_NAME.get(run.phase.options[choice], "?"))
+	await _wait(1.2)
+
+
+## A short story beat over the current screen; it never blocks play.
+func _story(text: String) -> void:
+	var panel := NinePatchRect.new()
+	panel.texture = Art.tex("ui/panel")
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		panel.set_patch_margin(side, 6)
+	panel.position = Vector2(30, 40)
+	panel.size = Vector2(260, 60)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var l := Art.label(text, Vector2(10, 9), 240, Art.PUTIH, Art.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	panel.add_child(l)
+	_add(panel)
+	# the label measured one long line before autowrap was on; shrink it once it is in the tree
+	l.set_deferred("size", Vector2(240, 42))
+	var tw := create_tween()
+	tw.tween_interval(4.5 * (0.3 if autoplay else 1.0))
+	tw.tween_property(panel, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(panel.queue_free)
+
+
+func _has_boss() -> bool:
+	for e in state.get("enemies", []):
+		if e.defId == "banaspati":
+			return true
+	return false
 
 
 func _wait(seconds: float) -> void:
-	await get_tree().create_timer(seconds * (0.3 if autoplay else 1.0)).timeout
+	await get_tree().create_timer(seconds * (0.3 if autoplay and not demo else 1.0)).timeout
 
 
 func _float(a, text: String, color: Color) -> void:

@@ -4,6 +4,7 @@ import os
 
 from characters import ENEMIES, HEROES
 import font
+import music
 from icons import CARD_ART, CARD_TYPES, MAP_NODES, UI_ICONS, card_back, card_frame, eclipse_frames
 from px import PALETTE, Canvas, animate, sheet
 from scenes import arena_banaspati, bar, button, hutan_larangan, mockup, panel, peta, title_screen
@@ -69,6 +70,9 @@ def build():
 
     n = font.build(os.path.join(OUT, "font"))
     manifest.append({"group": "font", "name": "aksara_malam", "file": "font/aksara_malam.png", "w": 0, "h": 0, "frames": 1, "note": f"{n} glyphs, BMFont"})
+
+    tracks = music.build(os.path.join(OUT, "audio"))
+    manifest.append({"group": "audio", "name": "musik", "file": "audio/musik_peta.mp3", "w": 0, "h": 0, "frames": 1, "note": f"{tracks} MP3 loops"})
 
     save("mockup", "combat", mockup(stills, icons, cards, art, ecl), "composition check, not a game asset")
 

@@ -32,7 +32,7 @@ test("restu buffs partner serang", () => {
   const { state, events } = resolveTurn(combat([p0, p1], [enemy("genderuwo", "e0", { intent: idle })]),
     [[pick("0-0", at("e0"))], [pick("1-0", ally(0))]], rng());
   expect(state.enemies[0].hp).toBe(ENEMIES.genderuwo.hp - 9);
-  expect(events).toContainEqual({ t: "damage", to: at("e0"), amount: 9, hpAfter: ENEMIES.genderuwo.hp - 9 });
+  expect(events).toContainEqual({ t: "damage", from: ally(0), to: at("e0"), amount: 9, hpAfter: ENEMIES.genderuwo.hp - 9 });
 });
 
 test("serempak bonus only when partner hits same enemy", () => {
@@ -162,4 +162,16 @@ test("terbakar knocking out a player reports pingsan", () => {
   const s0 = combat([player(0, { hp: 1, statuses: { terbakar: 2 } }), player(1)], [enemy("jenglot", "e0", { intent: idle })]);
   const { events } = resolveTurn(s0, [[], []], rng());
   expect(events).toContainEqual({ t: "pingsan", player: 0 });
+});
+
+test("damage and status events name who caused them", () => {
+  const p0 = player(0, { hand: cards(0, ["tebas"]) });
+  const s0 = combat([p0, player(1)], [
+    enemy("kuntilanak", "e0", { intent: intent({ kind: "status", status: "lemah", stacks: 2, target: "both" }, [0, 1]) }),
+    enemy("genderuwo", "e1", { intent: intent({ kind: "attack", amount: 5, target: "random" }, [1]) }),
+  ]);
+  const { events } = resolveTurn(s0, [[pick("0-0", at("e0"))], []], rng());
+  expect(events).toContainEqual({ t: "damage", from: { kind: "player", id: 0 }, to: at("e0"), amount: 6, hpAfter: ENEMIES.kuntilanak.hp - 6 });
+  expect(events).toContainEqual({ t: "status", from: at("e0"), to: { kind: "player", id: 1 }, status: "lemah", stacks: 2 });
+  expect(events).toContainEqual({ t: "damage", from: at("e1"), to: { kind: "player", id: 1 }, amount: 5, hpAfter: 25 });
 });

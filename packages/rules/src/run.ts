@@ -31,11 +31,17 @@ export type Phase =
   | { kind: "shop"; offers: [string[], string[]]; done: [boolean, boolean]; removed: [boolean, boolean] }
   | { kind: "ended"; result: "won" | "lost"; stepReached: number };
 
+export interface RunStats {
+  damage: number;                 // HP taken off enemies
+  plays: Record<string, number>;  // card defId -> times played
+}
+
 export interface RunState {
   seed: number;
   map: MapStep[];
   step: number; // 0-based; MAP_STEPS = boss
   players: [PlayerRun, PlayerRun];
+  stats: [RunStats, RunStats];
   phase: Phase;
 }
 
@@ -59,7 +65,8 @@ export function createRun(seed: number, characters: [CharacterId, CharacterId]):
     const maxHp = CHARACTERS[character].maxHp;
     return { character, hp: maxHp, maxHp, coins: 0, deck, pusaka: [], nextUid: deck.length };
   }) as [PlayerRun, PlayerRun];
-  return { state: { seed, map: generateMap(rng), step: 0, players, phase: { kind: "vote", step: 0, votes: [null, null] } }, rng };
+  const stats: [RunStats, RunStats] = [{ damage: 0, plays: {} }, { damage: 0, plays: {} }];
+  return { state: { seed, map: generateMap(rng), step: 0, players, stats, phase: { kind: "vote", step: 0, votes: [null, null] } }, rng };
 }
 
 const offer = (rng: Rng, pool: string[], n: number) => rng.shuffle(pool).slice(0, n);
@@ -135,13 +142,26 @@ export function applyAction(input: RunState, a: RunAction, rng: Rng): Result {
       if (ph.kind !== "vote" || ph.votes[a.player] !== null) return { error: ph.kind !== "vote" ? "WRONG_PHASE" : "INVALID" };
       ph.votes[a.player] = a.choice;
       const [v0, v1] = ph.votes;
-      if (v0 !== null && v1 !== null) enterNode(s, s.map[s.step][v0 === v1 ? v0 : rng.int(0, 1)], rng);
+      if (v0 !== null && v1 !== null) {
+        const choice = (v0 === v1 ? v0 : rng.int(0, 1)) as 0 | 1;
+        if (v0 !== v1) events.push({ t: "coinFlip", choice });
+        enterNode(s, s.map[s.step][choice], rng);
+      }
       break;
     }
     case "playCards": {
       if (ph.kind !== "combat") return { error: "WRONG_PHASE" };
       for (const id of [0, 1] as const) if (validatePicks(ph.combat, id, a.picks[id])) return { error: "INVALID" };
+      for (const id of [0, 1] as const) {
+        for (const pk of a.picks[id]) {
+          const defId = ph.combat.players[id].hand.find((c) => c.uid === pk.cardUid)!.defId;
+          s.stats[id].plays[defId] = (s.stats[id].plays[defId] ?? 0) + 1;
+        }
+      }
       const r = resolveTurn(ph.combat, a.picks, rng);
+      for (const e of r.events) {
+        if (e.t === "damage" && e.from?.kind === "player" && e.to.kind === "enemy") s.stats[e.from.id].damage += e.amount;
+      }
       events = r.events;
       if (r.state.outcome === "ongoing") ph.combat = startTurn(r.state, rng);
       else finishCombat(s, ph.node, r.state, rng);
