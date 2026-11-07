@@ -1,3 +1,4 @@
+@tool
 extends Node2D
 ## Asset preview: one combat layout built from the generated art. Not game logic.
 ## Space = everyone attacks, H = everyone is hit, B = switch to the Banaspati arena.
@@ -83,6 +84,8 @@ func _actor(group: String, sprite_name: String, x: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if Engine.is_editor_hint():
+		return
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	match event.keycode:
