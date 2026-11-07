@@ -1,0 +1,18 @@
+import { expect, test } from "bun:test";
+import { cardName, describeCard, enemyName } from "../src/text";
+import { CARDS } from "../src/content/cards";
+
+test("card names and descriptions come from the effects", () => {
+  expect(cardName("tebas")).toBe("Tebas");
+  expect(describeCard(CARDS.tebas, false)).toBe("Serang 6");
+  expect(describeCard(CARDS.tebas, true)).toBe("Serang 9");
+  expect(describeCard(CARDS.tangkis_dalang, false)).toBe("Perisai 5");
+  expect(describeCard(CARDS.panggil_wayang, false)).toBe("Wayang 6");
+  expect(describeCard(CARDS.restu, false)).toBe("Serangan target +3");
+  expect(describeCard(CARDS.jurus_harimau, false)).toBe("Jurus. Serang 8");
+});
+
+test("every card and enemy has a name", () => {
+  for (const id of Object.keys(CARDS)) expect(cardName(id)).not.toBe(id);
+  expect(enemyName("babi_ngepet")).toBe("Babi Ngepet");
+});

@@ -8,3 +8,4 @@ export * from "./damage";
 export * from "./events";
 export * from "./combat";
 export * from "./picks";
+export * from "./text";
