@@ -1,0 +1,873 @@
+{
+ "palette": {
+  "malam": "0f0d1f",
+  "nila_tua": "1e1b3a",
+  "nila": "2f3a6b",
+  "kabut": "5b6e99",
+  "perak": "a9b8cf",
+  "putih_kafan": "ece6d6",
+  "sogan_tua": "3a2318",
+  "sogan": "6b3f24",
+  "coklat": "a8703f",
+  "kulit": "d9a066",
+  "kulit_terang": "f0c999",
+  "prada": "e8b83a",
+  "prada_terang": "ffe58a",
+  "darah": "7a1c24",
+  "merah_gerhana": "c23a2b",
+  "api": "f26b21",
+  "api_terang": "ffb23f",
+  "hutan_tua": "16302a",
+  "hutan": "2c5a3f",
+  "lumut": "6f9a4a",
+  "gaib": "54e0c8"
+ },
+ "assets": [
+  {
+   "group": "heroes",
+   "name": "pendekar",
+   "file": "heroes/pendekar.png",
+   "w": 32,
+   "h": 32,
+   "frames": 1,
+   "note": "32x32 still"
+  },
+  {
+   "group": "heroes",
+   "name": "pendekar_idle",
+   "file": "heroes/pendekar_idle.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "heroes",
+   "name": "pendekar_attack",
+   "file": "heroes/pendekar_attack.png",
+   "w": 192,
+   "h": 32,
+   "frames": 4,
+   "note": "4 frames, 48x32 each"
+  },
+  {
+   "group": "heroes",
+   "name": "pendekar_hit",
+   "file": "heroes/pendekar_hit.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "heroes",
+   "name": "dalang",
+   "file": "heroes/dalang.png",
+   "w": 32,
+   "h": 32,
+   "frames": 1,
+   "note": "32x32 still"
+  },
+  {
+   "group": "heroes",
+   "name": "dalang_idle",
+   "file": "heroes/dalang_idle.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "heroes",
+   "name": "dalang_attack",
+   "file": "heroes/dalang_attack.png",
+   "w": 192,
+   "h": 32,
+   "frames": 4,
+   "note": "4 frames, 48x32 each"
+  },
+  {
+   "group": "heroes",
+   "name": "dalang_hit",
+   "file": "heroes/dalang_hit.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "tuyul",
+   "file": "enemies/tuyul.png",
+   "w": 32,
+   "h": 32,
+   "frames": 1,
+   "note": "32x32 still"
+  },
+  {
+   "group": "enemies",
+   "name": "tuyul_idle",
+   "file": "enemies/tuyul_idle.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "tuyul_attack",
+   "file": "enemies/tuyul_attack.png",
+   "w": 192,
+   "h": 32,
+   "frames": 4,
+   "note": "4 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "tuyul_hit",
+   "file": "enemies/tuyul_hit.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "kuntilanak",
+   "file": "enemies/kuntilanak.png",
+   "w": 32,
+   "h": 32,
+   "frames": 1,
+   "note": "32x32 still"
+  },
+  {
+   "group": "enemies",
+   "name": "kuntilanak_idle",
+   "file": "enemies/kuntilanak_idle.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "kuntilanak_attack",
+   "file": "enemies/kuntilanak_attack.png",
+   "w": 192,
+   "h": 32,
+   "frames": 4,
+   "note": "4 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "kuntilanak_hit",
+   "file": "enemies/kuntilanak_hit.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "pocong",
+   "file": "enemies/pocong.png",
+   "w": 32,
+   "h": 32,
+   "frames": 1,
+   "note": "32x32 still"
+  },
+  {
+   "group": "enemies",
+   "name": "pocong_idle",
+   "file": "enemies/pocong_idle.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "pocong_attack",
+   "file": "enemies/pocong_attack.png",
+   "w": 192,
+   "h": 32,
+   "frames": 4,
+   "note": "4 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "pocong_hit",
+   "file": "enemies/pocong_hit.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "babi_ngepet",
+   "file": "enemies/babi_ngepet.png",
+   "w": 32,
+   "h": 32,
+   "frames": 1,
+   "note": "32x32 still"
+  },
+  {
+   "group": "enemies",
+   "name": "babi_ngepet_idle",
+   "file": "enemies/babi_ngepet_idle.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "babi_ngepet_attack",
+   "file": "enemies/babi_ngepet_attack.png",
+   "w": 192,
+   "h": 32,
+   "frames": 4,
+   "note": "4 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "babi_ngepet_hit",
+   "file": "enemies/babi_ngepet_hit.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "jenglot",
+   "file": "enemies/jenglot.png",
+   "w": 32,
+   "h": 32,
+   "frames": 1,
+   "note": "32x32 still"
+  },
+  {
+   "group": "enemies",
+   "name": "jenglot_idle",
+   "file": "enemies/jenglot_idle.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "jenglot_attack",
+   "file": "enemies/jenglot_attack.png",
+   "w": 192,
+   "h": 32,
+   "frames": 4,
+   "note": "4 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "jenglot_hit",
+   "file": "enemies/jenglot_hit.png",
+   "w": 96,
+   "h": 32,
+   "frames": 2,
+   "note": "2 frames, 48x32 each"
+  },
+  {
+   "group": "enemies",
+   "name": "genderuwo",
+   "file": "enemies/genderuwo.png",
+   "w": 48,
+   "h": 48,
+   "frames": 1,
+   "note": "48x48 still"
+  },
+  {
+   "group": "enemies",
+   "name": "genderuwo_idle",
+   "file": "enemies/genderuwo_idle.png",
+   "w": 128,
+   "h": 48,
+   "frames": 2,
+   "note": "2 frames, 64x48 each"
+  },
+  {
+   "group": "enemies",
+   "name": "genderuwo_attack",
+   "file": "enemies/genderuwo_attack.png",
+   "w": 256,
+   "h": 48,
+   "frames": 4,
+   "note": "4 frames, 64x48 each"
+  },
+  {
+   "group": "enemies",
+   "name": "genderuwo_hit",
+   "file": "enemies/genderuwo_hit.png",
+   "w": 128,
+   "h": 48,
+   "frames": 2,
+   "note": "2 frames, 64x48 each"
+  },
+  {
+   "group": "enemies",
+   "name": "wewe_gombel",
+   "file": "enemies/wewe_gombel.png",
+   "w": 48,
+   "h": 48,
+   "frames": 1,
+   "note": "48x48 still"
+  },
+  {
+   "group": "enemies",
+   "name": "wewe_gombel_idle",
+   "file": "enemies/wewe_gombel_idle.png",
+   "w": 128,
+   "h": 48,
+   "frames": 2,
+   "note": "2 frames, 64x48 each"
+  },
+  {
+   "group": "enemies",
+   "name": "wewe_gombel_attack",
+   "file": "enemies/wewe_gombel_attack.png",
+   "w": 256,
+   "h": 48,
+   "frames": 4,
+   "note": "4 frames, 64x48 each"
+  },
+  {
+   "group": "enemies",
+   "name": "wewe_gombel_hit",
+   "file": "enemies/wewe_gombel_hit.png",
+   "w": 128,
+   "h": 48,
+   "frames": 2,
+   "note": "2 frames, 64x48 each"
+  },
+  {
+   "group": "enemies",
+   "name": "banaspati",
+   "file": "enemies/banaspati.png",
+   "w": 64,
+   "h": 64,
+   "frames": 1,
+   "note": "64x64 still"
+  },
+  {
+   "group": "enemies",
+   "name": "banaspati_idle",
+   "file": "enemies/banaspati_idle.png",
+   "w": 160,
+   "h": 64,
+   "frames": 2,
+   "note": "2 frames, 80x64 each"
+  },
+  {
+   "group": "enemies",
+   "name": "banaspati_attack",
+   "file": "enemies/banaspati_attack.png",
+   "w": 320,
+   "h": 64,
+   "frames": 4,
+   "note": "4 frames, 80x64 each"
+  },
+  {
+   "group": "enemies",
+   "name": "banaspati_hit",
+   "file": "enemies/banaspati_hit.png",
+   "w": 160,
+   "h": 64,
+   "frames": 2,
+   "note": "2 frames, 80x64 each"
+  },
+  {
+   "group": "enemies",
+   "name": "banaspati_fase2",
+   "file": "enemies/banaspati_fase2.png",
+   "w": 64,
+   "h": 64,
+   "frames": 1,
+   "note": "64x64 still"
+  },
+  {
+   "group": "enemies",
+   "name": "banaspati_fase2_idle",
+   "file": "enemies/banaspati_fase2_idle.png",
+   "w": 160,
+   "h": 64,
+   "frames": 2,
+   "note": "2 frames, 80x64 each"
+  },
+  {
+   "group": "enemies",
+   "name": "banaspati_fase2_attack",
+   "file": "enemies/banaspati_fase2_attack.png",
+   "w": 320,
+   "h": 64,
+   "frames": 4,
+   "note": "4 frames, 80x64 each"
+  },
+  {
+   "group": "enemies",
+   "name": "banaspati_fase2_hit",
+   "file": "enemies/banaspati_fase2_hit.png",
+   "w": 160,
+   "h": 64,
+   "frames": 2,
+   "note": "2 frames, 80x64 each"
+  },
+  {
+   "group": "cards",
+   "name": "kartu_serang",
+   "file": "cards/kartu_serang.png",
+   "w": 48,
+   "h": 64,
+   "frames": 1,
+   "note": "48x64, art window at (5,14) 38x25"
+  },
+  {
+   "group": "cards",
+   "name": "kartu_serang_plus",
+   "file": "cards/kartu_serang_plus.png",
+   "w": 48,
+   "h": 64,
+   "frames": 1,
+   "note": "upgraded frame"
+  },
+  {
+   "group": "cards",
+   "name": "kartu_tahan",
+   "file": "cards/kartu_tahan.png",
+   "w": 48,
+   "h": 64,
+   "frames": 1,
+   "note": "48x64, art window at (5,14) 38x25"
+  },
+  {
+   "group": "cards",
+   "name": "kartu_tahan_plus",
+   "file": "cards/kartu_tahan_plus.png",
+   "w": 48,
+   "h": 64,
+   "frames": 1,
+   "note": "upgraded frame"
+  },
+  {
+   "group": "cards",
+   "name": "kartu_bantu",
+   "file": "cards/kartu_bantu.png",
+   "w": 48,
+   "h": 64,
+   "frames": 1,
+   "note": "48x64, art window at (5,14) 38x25"
+  },
+  {
+   "group": "cards",
+   "name": "kartu_bantu_plus",
+   "file": "cards/kartu_bantu_plus.png",
+   "w": 48,
+   "h": 64,
+   "frames": 1,
+   "note": "upgraded frame"
+  },
+  {
+   "group": "cards",
+   "name": "kartu_belakang",
+   "file": "cards/kartu_belakang.png",
+   "w": 48,
+   "h": 64,
+   "frames": 1,
+   "note": "card back"
+  },
+  {
+   "group": "card_art",
+   "name": "tebas",
+   "file": "card_art/tebas.png",
+   "w": 24,
+   "h": 24,
+   "frames": 1,
+   "note": "24x24, centre in the art window"
+  },
+  {
+   "group": "card_art",
+   "name": "tangkis",
+   "file": "card_art/tangkis.png",
+   "w": 24,
+   "h": 24,
+   "frames": 1,
+   "note": "24x24, centre in the art window"
+  },
+  {
+   "group": "card_art",
+   "name": "jurus_harimau",
+   "file": "card_art/jurus_harimau.png",
+   "w": 24,
+   "h": 24,
+   "frames": 1,
+   "note": "24x24, centre in the art window"
+  },
+  {
+   "group": "card_art",
+   "name": "pukul_wayang",
+   "file": "card_art/pukul_wayang.png",
+   "w": 24,
+   "h": 24,
+   "frames": 1,
+   "note": "24x24, centre in the art window"
+  },
+  {
+   "group": "card_art",
+   "name": "panggil_wayang",
+   "file": "card_art/panggil_wayang.png",
+   "w": 24,
+   "h": 24,
+   "frames": 1,
+   "note": "24x24, centre in the art window"
+  },
+  {
+   "group": "card_art",
+   "name": "restu",
+   "file": "card_art/restu.png",
+   "w": 24,
+   "h": 24,
+   "frames": 1,
+   "note": "24x24, centre in the art window"
+  },
+  {
+   "group": "icons",
+   "name": "hp",
+   "file": "icons/hp.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "perisai",
+   "file": "icons/perisai.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "wayang",
+   "file": "icons/wayang.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "koin",
+   "file": "icons/koin.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "jurus",
+   "file": "icons/jurus.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "status_rentan",
+   "file": "icons/status_rentan.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "status_lemah",
+   "file": "icons/status_lemah.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "status_terbakar",
+   "file": "icons/status_terbakar.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "niat_serang",
+   "file": "icons/niat_serang.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "niat_serang_semua",
+   "file": "icons/niat_serang_semua.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "niat_status",
+   "file": "icons/niat_status.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "niat_curi",
+   "file": "icons/niat_curi.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "niat_kabur",
+   "file": "icons/niat_kabur.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "niat_hindar",
+   "file": "icons/niat_hindar.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "niat_ancang",
+   "file": "icons/niat_ancang.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "niat_hisap",
+   "file": "icons/niat_hisap.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "niat_culik",
+   "file": "icons/niat_culik.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "icons",
+   "name": "ping",
+   "file": "icons/ping.png",
+   "w": 12,
+   "h": 12,
+   "frames": 1,
+   "note": "12x12"
+  },
+  {
+   "group": "map",
+   "name": "node_pertarungan",
+   "file": "map/node_pertarungan.png",
+   "w": 16,
+   "h": 16,
+   "frames": 1,
+   "note": "16x16"
+  },
+  {
+   "group": "map",
+   "name": "node_elite",
+   "file": "map/node_elite.png",
+   "w": 16,
+   "h": 16,
+   "frames": 1,
+   "note": "16x16"
+  },
+  {
+   "group": "map",
+   "name": "node_istirahat",
+   "file": "map/node_istirahat.png",
+   "w": 16,
+   "h": 16,
+   "frames": 1,
+   "note": "16x16"
+  },
+  {
+   "group": "map",
+   "name": "node_warung",
+   "file": "map/node_warung.png",
+   "w": 16,
+   "h": 16,
+   "frames": 1,
+   "note": "16x16"
+  },
+  {
+   "group": "map",
+   "name": "node_boss",
+   "file": "map/node_boss.png",
+   "w": 16,
+   "h": 16,
+   "frames": 1,
+   "note": "16x16"
+  },
+  {
+   "group": "ui",
+   "name": "timer_gerhana",
+   "file": "ui/timer_gerhana.png",
+   "w": 192,
+   "h": 24,
+   "frames": 8,
+   "note": "8 frames, 24x24 each; frame = elapsed share of the 30 s turn"
+  },
+  {
+   "group": "ui",
+   "name": "panel",
+   "file": "ui/panel.png",
+   "w": 24,
+   "h": 24,
+   "frames": 1,
+   "note": "9-slice, margins 6px"
+  },
+  {
+   "group": "ui",
+   "name": "tombol_normal",
+   "file": "ui/tombol_normal.png",
+   "w": 16,
+   "h": 16,
+   "frames": 1,
+   "note": "9-slice, margins 4px"
+  },
+  {
+   "group": "ui",
+   "name": "tombol_hover",
+   "file": "ui/tombol_hover.png",
+   "w": 16,
+   "h": 16,
+   "frames": 1,
+   "note": "9-slice, margins 4px"
+  },
+  {
+   "group": "ui",
+   "name": "tombol_pressed",
+   "file": "ui/tombol_pressed.png",
+   "w": 16,
+   "h": 16,
+   "frames": 1,
+   "note": "9-slice, margins 4px"
+  },
+  {
+   "group": "ui",
+   "name": "tombol_disabled",
+   "file": "ui/tombol_disabled.png",
+   "w": 16,
+   "h": 16,
+   "frames": 1,
+   "note": "9-slice, margins 4px"
+  },
+  {
+   "group": "ui",
+   "name": "bar_frame",
+   "file": "ui/bar_frame.png",
+   "w": 34,
+   "h": 5,
+   "frames": 1,
+   "note": "frame 34x5; fills 32x3, scale x to value"
+  },
+  {
+   "group": "ui",
+   "name": "bar_hp",
+   "file": "ui/bar_hp.png",
+   "w": 32,
+   "h": 3,
+   "frames": 1,
+   "note": "frame 34x5; fills 32x3, scale x to value"
+  },
+  {
+   "group": "ui",
+   "name": "bar_perisai",
+   "file": "ui/bar_perisai.png",
+   "w": 32,
+   "h": 3,
+   "frames": 1,
+   "note": "frame 34x5; fills 32x3, scale x to value"
+  },
+  {
+   "group": "ui",
+   "name": "bar_wayang",
+   "file": "ui/bar_wayang.png",
+   "w": 32,
+   "h": 3,
+   "frames": 1,
+   "note": "frame 34x5; fills 32x3, scale x to value"
+  },
+  {
+   "group": "backgrounds",
+   "name": "hutan_larangan",
+   "file": "backgrounds/hutan_larangan.png",
+   "w": 320,
+   "h": 180,
+   "frames": 1,
+   "note": "320x180, ground line y=112"
+  },
+  {
+   "group": "backgrounds",
+   "name": "arena_banaspati",
+   "file": "backgrounds/arena_banaspati.png",
+   "w": 320,
+   "h": 180,
+   "frames": 1,
+   "note": "320x180, ground line y=112"
+  },
+  {
+   "group": "backgrounds",
+   "name": "peta",
+   "file": "backgrounds/peta.png",
+   "w": 320,
+   "h": 180,
+   "frames": 1,
+   "note": "320x180"
+  },
+  {
+   "group": "mockup",
+   "name": "combat",
+   "file": "mockup/combat.png",
+   "w": 320,
+   "h": 180,
+   "frames": 1,
+   "note": "composition check, not a game asset"
+  }
+ ]
+}

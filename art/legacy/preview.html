@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Hero Animations</title>
+<style>
+  body { background: #333c57; color: #f4f4f4; font: 14px system-ui; margin: 16px; }
+  section { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; margin-bottom: 24px; }
+  section > * { flex-shrink: 0; }
+  .strip { max-width: 100%; object-fit: contain; object-position: left; }
+  h2 { width: 70px; font-size: 14px; }
+  .anim {
+    --s: 6; height: calc(32px * var(--s)); width: calc(var(--fw) * var(--s));
+    background: var(--img) 0 0 / calc(var(--sw) * var(--s)) 100% no-repeat;
+    image-rendering: pixelated;
+    animation: play var(--dur) steps(var(--n)) infinite;
+  }
+  @keyframes play { to { background-position: calc(var(--sw) * var(--s) * -1) 0; } }
+  .strip { height: 96px; image-rendering: pixelated; outline: 1px dashed #566c86; }
+</style>
+<section>
+  <h2>idle</h2>
+  <div class="anim" style="--img:url(hero_idle.png);--fw:32px;--sw:64px;--n:2;--dur:1s"></div>
+  <img class="strip" src="hero_idle.png">
+</section>
+<section>
+  <h2>attack</h2>
+  <div class="anim" style="--img:url(hero_attack.png);--fw:56px;--sw:224px;--n:4;--dur:.6s"></div>
+  <img class="strip" src="hero_attack.png">
+</section>
+<section>
+  <h2>hit</h2>
+  <div class="anim" style="--img:url(hero_hit.png);--fw:32px;--sw:64px;--n:2;--dur:.4s"></div>
+  <img class="strip" src="hero_hit.png">
+</section>
