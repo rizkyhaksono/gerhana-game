@@ -8,7 +8,7 @@ export const PROTOCOL_VERSION = 1;
 export type ClientMsg =
   | { type: "create_room"; name: string; bot: boolean }
   | { type: "join_room"; code: string; name: string }
-  | { type: "play_cards"; picks: Pick[] }
+  | { type: "play_cards"; picks: Pick[]; turn: number }
   | { type: "vote"; choice: 0 | 1 }
   | { type: "choose_card"; defId: string | null }
   | { type: "choose_pusaka"; id: string }
@@ -25,7 +25,7 @@ export interface PlayerView {
 }
 export interface EnemyView {
   uid: string; defId: string; name: string; hp: number; maxHp: number; statuses: Statuses; fled: boolean;
-  intent: { kind: string; amount: number; status?: string; stacks?: number; targets: (0 | 1)[] } | null;
+  intent: { kind: string; amount: number; coins?: number; status?: string; stacks?: number; targets: (0 | 1)[] } | null;
 }
 export interface StateView { turn: number; outcome: string; players: PlayerView[]; enemies: EnemyView[] }
 
@@ -38,7 +38,7 @@ export type PhaseView =
   | { kind: "combat"; node: string }
   | { kind: "reward"; offers: CardView[]; pusakaOffer: PusakaView[] | null; pusakaChooser: number | null; done: boolean[] }
   | { kind: "rest"; done: boolean[] }
-  | { kind: "shop"; offers: CardView[]; done: boolean[]; cardPrice: number; removePrice: number }
+  | { kind: "shop"; offers: CardView[]; done: boolean[]; removed: boolean; cardPrice: number; removePrice: number }
   | { kind: "ended"; result: string; stepReached: number };
 export interface RunView { step: number; steps: number; map: string[][]; players: RunPlayerView[]; deck: CardView[]; phase: PhaseView }
 
@@ -66,7 +66,7 @@ export function runView(r: RunState, names: string[], seat: 0 | 1): RunView {
     : ph.kind === "combat" ? { kind: "combat", node: ph.node }
     : ph.kind === "reward" ? { kind: "reward", offers: ph.offers[seat].map(offerView), pusakaOffer: ph.pusakaOffer?.map(pusakaView) ?? null, pusakaChooser: ph.pusakaChooser, done: ph.done }
     : ph.kind === "rest" ? { kind: "rest", done: ph.done }
-    : ph.kind === "shop" ? { kind: "shop", offers: ph.offers[seat].map(offerView), done: ph.done, cardPrice: CARD_PRICE, removePrice: REMOVE_PRICE }
+    : ph.kind === "shop" ? { kind: "shop", offers: ph.offers[seat].map(offerView), done: ph.done, removed: ph.removed[seat], cardPrice: CARD_PRICE, removePrice: REMOVE_PRICE }
     : { kind: "ended", result: ph.result, stepReached: ph.stepReached };
   return {
     step: r.step,
@@ -93,7 +93,9 @@ export function stateView(s: CombatState, names: string[]): StateView {
       uid: e.uid, defId: e.defId, name: enemyName(e.defId), hp: e.hp, maxHp: e.maxHp, statuses: e.statuses, fled: e.fled,
       intent: e.intent && {
         kind: e.intent.kind,
-        amount: "amount" in e.intent ? e.intent.amount : "attack" in e.intent ? e.intent.attack : 0,
+        // a steal's amount is coins; the hit players must block is its attack
+        amount: e.intent.kind === "steal" ? e.intent.attack : "amount" in e.intent ? e.intent.amount : 0,
+        ...(e.intent.kind === "steal" ? { coins: e.intent.amount } : {}),
         ...("status" in e.intent ? { status: e.intent.status, stacks: e.intent.stacks } : {}),
         targets: e.intent.targets,
       },
@@ -137,7 +139,8 @@ export function parseClient(raw: string): ClientMsg | null {
     case "play_cards": {
       if (!Array.isArray(m.picks) || m.picks.length > 2) return null;
       const picks = m.picks.map(parsePick);
-      return picks.every(Boolean) ? { type: "play_cards", picks: picks as Pick[] } : null;
+      if (!Number.isInteger(m.turn)) return null;
+      return picks.every(Boolean) ? { type: "play_cards", picks: picks as Pick[], turn: m.turn as number } : null;
     }
     case "vote":
       return m.choice === 0 || m.choice === 1 ? { type: "vote", choice: m.choice } : null;

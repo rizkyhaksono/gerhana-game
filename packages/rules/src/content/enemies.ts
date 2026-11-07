@@ -1,6 +1,6 @@
 import type { EnemyDef } from "../types";
 
-// Spec §5 patterns. HP tuned by the balance sim (2026-11-07): normal ×3.8, elite ×2.6, boss 172 and
+// Spec §5 patterns. HP tuned by the balance sim (2026-11-07): normal ×3.8, elite ×2.6, boss 182 and
 // boss hits ×1.05 over the spec's starting values → 33–35% bot win rate, ~17 min runs. Untargeted intents use "random".
 const LIST: EnemyDef[] = [
   { id: "tuyul", nameKey: "enemy.tuyul", rank: "normal", hp: 46,
@@ -20,7 +20,7 @@ const LIST: EnemyDef[] = [
   { id: "wewe_gombel", nameKey: "enemy.wewe_gombel", rank: "elite", hp: 130,
     pattern: [{ kind: "destroyWayang", fallbackLemah: 2 },
       { kind: "attack", amount: 9, target: "random" }, { kind: "attack", amount: 9, target: "random" }] },
-  { id: "banaspati", nameKey: "enemy.banaspati", rank: "boss", hp: 172,
+  { id: "banaspati", nameKey: "enemy.banaspati", rank: "boss", hp: 182,
     pattern: [{ kind: "attackStatus", amount: 8, status: "terbakar", stacks: 2, target: "both" },
       { kind: "attack", amount: 13, target: "random" }],
     phase2: { belowHpPct: 50, pattern: [{ kind: "status", status: "terbakar", stacks: 3, target: "both" },

@@ -40,7 +40,9 @@ const effectText = (fx: Effect): string => {
 /** Rules text short enough for a 60px card. The Jurus tag is shown as an icon on the card, not in words. */
 export function describeCard(def: CardDef, upgraded: boolean): string {
   const v = upgraded ? def.upgraded : def;
-  const parts = [v.effects.map(effectText).join(". ")];
+  // a Bantu card's perisai goes to the player who plays it, whoever the card targets
+  const text = (fx: Effect) => (def.type === "bantu" && fx.kind === "block" ? `Kamu ${effectText(fx)}` : effectText(fx));
+  const parts = [v.effects.map(text).join(". ")];
   if (def.tags.includes("serempak")) parts.push(`Bareng +${v.serempakBonus ?? 0}`);
   return parts.join(". ");
 }

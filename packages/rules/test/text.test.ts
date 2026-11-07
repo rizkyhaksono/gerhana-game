@@ -25,3 +25,7 @@ test("every pusaka has a name and a description", () => {
   expect(describePusaka("keris_kembar")).toBe("Serempak +2 (kalian berdua)");
   expect(describePusaka("kemenyan")).toBe("Awal pertarungan: Perisai 6");
 });
+
+test("bantu block says it shields the player who plays it", () => {
+  expect(describeCard(CARDS.sorak_juang, false)).toBe("Serangan target +2. Kamu Perisai 3");
+});

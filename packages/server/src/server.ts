@@ -19,6 +19,13 @@ export function originAllowed(origin: string | null): boolean {
   }
 }
 
+/** Behind a local TLS proxy every peer is loopback: then the proxy's X-Forwarded-For names the client. */
+export function clientIp(peer: string, forwarded: string | null): string {
+  const loopback = peer === "127.0.0.1" || peer === "::1" || peer === "::ffff:127.0.0.1";
+  const first = forwarded?.split(",")[0]?.trim();
+  return loopback && first ? first : peer;
+}
+
 function newCode(rooms: Map<string, Room>): string {
   for (;;) {
     const bytes = crypto.getRandomValues(new Uint8Array(6));
@@ -44,7 +51,7 @@ export function startServer(port: number, opts: { turnMs?: number } = {}) {
     hostname: process.env.HOST ?? "127.0.0.1",
     fetch(req, server) {
       if (!originAllowed(req.headers.get("origin"))) return new Response("forbidden origin", { status: 403 });
-      const ip = server.requestIP(req)?.address ?? "?";
+      const ip = clientIp(server.requestIP(req)?.address ?? "?", req.headers.get("x-forwarded-for"));
       if (server.upgrade(req, { data: { ip, room: null, seat: null, times: [] } })) return;
       return new Response("Gerhana server: connect with WebSocket", { status: 426 });
     },
@@ -83,7 +90,7 @@ export function startServer(port: number, opts: { turnMs?: number } = {}) {
         if (!c.room || c.seat === null) return send(ws, { type: "error", code: "NOT_IN_ROOM" });
         const seat = c.seat;
         switch (msg.type) {
-          case "play_cards": return c.room.playCards(seat, msg.picks);
+          case "play_cards": return c.room.playCards(seat, msg.picks, msg.turn);
           case "play_again": return c.room.playAgain();
           case "vote": return c.room.act(seat, { kind: "vote", player: seat, choice: msg.choice });
           case "choose_card": return c.room.act(seat, { kind: "chooseCard", player: seat, defId: msg.defId });

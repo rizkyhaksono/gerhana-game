@@ -96,7 +96,7 @@ function shopState(coins: number, deckSize = 10): { s: RunState; rng: Rng } {
   const { state, rng } = createRun(1, ["pendekar", "dalang"]);
   state.players[0].coins = coins;
   state.players[0].deck = state.players[0].deck.slice(0, deckSize);
-  state.phase = { kind: "shop", offers: [["tendang", "sapuan", "kuda_kuda"], ["kelir", "tembang", "sabetan"]], done: [false, false] };
+  state.phase = { kind: "shop", offers: [["tendang", "sapuan", "kuda_kuda"], ["kelir", "tembang", "sabetan"]], done: [false, false], removed: [false, false] };
   return { s: state, rng };
 }
 
@@ -156,4 +156,10 @@ test("full scripted run reaches ended", () => {
     }
     expect(s.phase.kind).toBe("ended");
   }
+});
+
+test("shop allows one removal per visit", () => {
+  const { s: s0, rng } = shopState(300);
+  const s = ok(applyAction(s0, { kind: "shopRemove", player: 0, cardUid: "0-0" }, rng));
+  expect(applyAction(s, { kind: "shopRemove", player: 0, cardUid: "0-1" }, rng)).toEqual({ error: "INVALID" });
 });

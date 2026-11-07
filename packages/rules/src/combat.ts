@@ -138,26 +138,48 @@ export function checkOutcome(input: CombatState): CombatState {
   return s;
 }
 
-export function endTurn(input: CombatState): CombatState {
+/** An enemy just hit 0 HP: report it and hand back anything it stole (spec §5). */
+function enemyDies(s: CombatState, e: EnemyCombat, events: GameEvent[]) {
+  events.push({ t: "enemyDied", enemy: e.uid });
+  for (const st of e.stolen) {
+    s.players[st.player].coins += st.amount;
+    events.push({ t: "coinsReturned", player: st.player, amount: st.amount });
+  }
+  e.stolen = [];
+}
+
+/** End of turn: Terbakar first (perisai and wayang still up, spec §4.1 step 3.4), then hands and perisai go. */
+export function endTurnWithEvents(input: CombatState): { state: CombatState; events: GameEvent[] } {
   const s = structuredClone(input);
+  const events: GameEvent[] = [];
   for (const p of s.players) {
-    p.discard.push(...p.hand);
-    p.hand = [];
-    p.block = 0;
     const { burn, next } = tickStatuses(p.statuses);
     p.statuses = next;
     if (burn > 0 && !p.pingsan) {
       Object.assign(p, absorb(burn, p));
-      if (p.hp === 0) p.pingsan = true;
+      events.push({ t: "damage", to: { kind: "player", id: p.id }, amount: burn, hpAfter: p.hp });
+      if (p.hp === 0) {
+        p.pingsan = true;
+        events.push({ t: "pingsan", player: p.id });
+      }
     }
+    p.discard.push(...p.hand);
+    p.hand = [];
+    p.block = 0;
   }
   for (const e of s.enemies) {
     const { burn, next } = tickStatuses(e.statuses);
     e.statuses = next;
-    if (burn > 0 && isActive(e)) e.hp = Math.max(0, e.hp - burn);
+    if (burn > 0 && isActive(e)) {
+      e.hp = Math.max(0, e.hp - burn);
+      events.push({ t: "damage", to: { kind: "enemy", uid: e.uid }, amount: burn, hpAfter: e.hp });
+      if (e.hp === 0) enemyDies(s, e, events);
+    }
   }
-  return checkOutcome(s);
+  return { state: checkOutcome(s), events };
 }
+
+export const endTurn = (input: CombatState): CombatState => endTurnWithEvents(input).state;
 
 // --- resolveTurn ---------------------------------------------------------------
 
@@ -252,12 +274,7 @@ export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { stat
           p.damageDealt += before - e.hp;
           events.push({ t: "damage", to, amount: dmg, hpAfter: e.hp });
           if (e.hp === 0) {
-            events.push({ t: "enemyDied", enemy: e.uid });
-            for (const st of e.stolen) {
-              s.players[st.player].coins += st.amount;
-              events.push({ t: "coinsReturned", player: st.player, amount: st.amount });
-            }
-            e.stolen = [];
+            enemyDies(s, e, events);
             break;
           }
         } else if (fx.kind === "status") {
@@ -303,5 +320,6 @@ export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { stat
     e.patternIndex += 1;
   }
 
-  return { state: endTurn(s), events };
+  const end = endTurnWithEvents(s);
+  return { state: end.state, events: [...events, ...end.events] };
 }

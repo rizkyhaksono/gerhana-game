@@ -134,3 +134,18 @@ test("a dropped player is replaced by the bot and the run continues", () => {
   playRun(room, a);
   expect(a.last("run_state")!.run.phase.kind).toBe("ended");
 });
+
+test("a play_cards for an earlier turn is rejected, never applied to the new hand", () => {
+  const a = inbox(), b = inbox();
+  const room = new Room("ABCDEF", 3, { turnMs: 0 });
+  room.join("A", a.send);
+  room.join("B", b.send);
+  room.act(0, { kind: "vote", player: 0, choice: 0 });
+  room.act(1, { kind: "vote", player: 1, choice: 0 });
+  const t1 = room.combat!.turn;
+  const late = autoPick(room.combat!, 0);
+  room.playCards(0, autoPick(room.combat!, 0), t1);
+  room.playCards(1, autoPick(room.combat!, 1), t1);
+  room.playCards(0, late, t1);
+  expect(a.last("error")).toEqual({ type: "error", code: "STALE_TURN" });
+});

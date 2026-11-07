@@ -49,6 +49,7 @@ var hand: Array = []
 var picks: Array = []        # [{cardUid, target}]
 var pending := {}            # card waiting for a target
 var sent := false
+var turn := 0
 var turn_ms := 30000
 var turn_started := 0
 
@@ -60,6 +61,7 @@ var prompt: Label
 var ready_button: Button
 var picked_label: Label
 var timer_sprite: Sprite2D
+var coin_label: Label
 var status_line: Label
 
 
@@ -97,7 +99,14 @@ func _connect_and_send(msg: Dictionary) -> void:
 	ws = WebSocketPeer.new()
 	was_open = false
 	first_msg = msg
-	_status("Menghubungkan ke server…" if ws.connect_to_url(SERVER_URL) == OK else "Alamat server tidak valid.")
+	if ws.connect_to_url(SERVER_URL) != OK:
+		_status("Alamat server tidak valid.")
+		return
+	_status("Menghubungkan ke server…")
+	await get_tree().create_timer(5.0).timeout
+	if not was_open and world == null and ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		ws.close()
+		_status("Server tidak menjawab. Jalankan: bun packages/server/src/server.ts")
 
 
 func _send(msg: Dictionary) -> void:
@@ -125,10 +134,11 @@ func _handle(m: Dictionary) -> void:
 				if autoplay:
 					_autoplay_run()
 		"turn_start":
+			state = m.state  # before _show_combat: it picks the arena from the enemies
 			if world == null:
 				_show_combat()
-			state = m.state
 			hand = m.hand
+			turn = int(m.turn)
 			turn_ms = int(m.turnMs)
 			turn_started = Time.get_ticks_msec()
 			picks.clear()
@@ -138,7 +148,7 @@ func _handle(m: Dictionary) -> void:
 			_render_hand()
 			if state.players[you].pingsan:
 				sent = true
-				_send({"type": "play_cards", "picks": []})
+				_send({"type": "play_cards", "picks": [], "turn": turn})
 				_prompt("Kamu pingsan. Rekanmu bertarung sendiri giliran ini.")
 			else:
 				_prompt("Pilih 2 kartu.")
@@ -159,6 +169,8 @@ func _handle(m: Dictionary) -> void:
 		"combat_end":
 			await _banner(m.outcome == "won")
 		"error":
+			if m.code == "STALE_TURN":
+				return  # our picks arrived after the timer played for us; the new turn is already on screen
 			var text: String = ERRORS.get(m.code, "Server menolak aksi itu (%s)." % m.code)
 			if world:
 				_prompt(text)
@@ -402,7 +414,9 @@ func _show_shop() -> void:
 		_add(b)
 		_add(Art.label("%d koin" % int(ph.cardPrice), Vector2(62 + i * 66, 117), CARD_W, Art.PRADA, Art.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	var rm := Art.button("Buang kartu: %d koin" % int(ph.removePrice), Vector2(52, 130), Vector2(104, 16), func(): _deck_picker("remove"))
-	rm.disabled = coins < int(ph.removePrice)
+	rm.disabled = coins < int(ph.removePrice) or ph.removed
+	if ph.removed:
+		rm.text = "Sudah buang kartu"
 	_add(rm)
 	_add(Art.button("Selesai belanja", Vector2(164, 130), Vector2(104, 16), func(): _send({"type": "leave"})))
 	status_line.position.y = 26
@@ -457,7 +471,7 @@ func _show_combat() -> void:
 	var boss := false
 	for e in state.get("enemies", []):
 		boss = boss or e.defId == "banaspati"
-	world.add_child(Art.sprite("backgrounds/" + ("arena_banaspati" if run.get("phase", {}).get("node", "") == "boss" else "hutan_larangan"), Vector2.ZERO))
+	world.add_child(Art.sprite("backgrounds/" + ("arena_banaspati" if boss else "hutan_larangan"), Vector2.ZERO))
 	root = Control.new()
 	root.theme = Art.theme()
 	root.size = Vector2(320, 180)
@@ -472,8 +486,7 @@ func _show_combat() -> void:
 	timer_sprite.hframes = 8
 	add_child(timer_sprite)
 	prompt = _add(Art.label("", Vector2(6, 2), 138, Art.PUTIH))
-	var coins := int(run.players[you].coins) if run.has("players") else 0
-	_add(Art.label("%d koin" % coins, Vector2(176, 2), 138, Art.PRADA, Art.TEXT, HORIZONTAL_ALIGNMENT_RIGHT))
+	coin_label = _add(Art.label("", Vector2(176, 2), 138, Art.PRADA, Art.TEXT, HORIZONTAL_ALIGNMENT_RIGHT))
 	hand_box = Control.new()
 	hand_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_add(hand_box)
@@ -488,6 +501,8 @@ func _prompt(text: String) -> void:
 
 
 func _render_state() -> void:
+	if coin_label:
+		coin_label.text = "%d koin" % int(state.players[you].coins)
 	var keys := []
 	for p in state.players:
 		keys.append("p%d" % int(p.id))
@@ -601,6 +616,8 @@ func _intent(a: Dictionary, intent) -> void:
 	for t in intent.targets:
 		who += "P" if state.players[int(t)].character == "pendekar" else "D"
 	var text := "%d" % intent.amount if intent.amount > 0 else ""
+	if intent.has("coins"):
+		text = "%s%scuri %d" % [text, " " if text else "", intent.coins]
 	if intent.has("status"):
 		text = "%s%s%s %d" % [text, " " if text else "", STATUS_NAME.get(intent.status, intent.status), intent.stacks]
 	if who:
@@ -781,7 +798,7 @@ func _submit() -> void:
 	if sent or picks.size() != _required():
 		return
 	sent = true
-	_send({"type": "play_cards", "picks": picks})
+	_send({"type": "play_cards", "picks": picks, "turn": turn})
 	_prompt("Menunggu rekan…")
 	_render_hand()
 

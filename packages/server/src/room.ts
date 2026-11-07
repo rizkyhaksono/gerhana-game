@@ -47,16 +47,18 @@ export class Room {
     if (!seat) return;
     seat.send = null;
     seat.bot = true;
-    if (this.run) this.sync();
+    if (this.run && !this.empty) this.sync(); // nobody left watching: don't let two bots play the run out
   }
 
   get empty() {
     return this.seats.every((s) => !s || !s.send);
   }
 
-  playCards(id: 0 | 1, picks: Pick[]) {
+  /** `turn` is the turn the client chose for; a pick sent for a turn that already resolved is dropped. */
+  playCards(id: 0 | 1, picks: Pick[], turn = this.combat?.turn) {
     const c = this.combat;
     if (!c) return this.send(id, { type: "error", code: "NO_COMBAT" });
+    if (turn !== c.turn) return this.send(id, { type: "error", code: "STALE_TURN" });
     if (this.picks[id]) return this.send(id, { type: "error", code: "ALREADY_PLAYED" });
     const err = validatePicks(c, id, picks);
     if (err) return this.send(id, { type: "error", code: err });

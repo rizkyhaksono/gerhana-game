@@ -69,3 +69,8 @@ test("functions do not mutate their input", () => {
   endTurn(before);
   expect(before).toEqual(copy);
 });
+
+test("perisai absorbs terbakar before it is cleared (spec §4.1 3.4 before 4)", () => {
+  const s = endTurn(combat([player(0, { block: 5, statuses: { terbakar: 3 } }), player(1)], [enemy("tuyul", "e0")]));
+  expect(s.players[0]).toMatchObject({ hp: 30, block: 0 });
+});

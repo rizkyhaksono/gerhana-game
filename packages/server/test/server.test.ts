@@ -60,6 +60,8 @@ test("malformed messages, unknown rooms and invalid picks get error codes", asyn
   a.send({ type: "join_room", code: "ZZZZZZ", name: "x" });
   expect((await a.next("error")).code).toBe("NO_ROOM");
   a.send({ type: "play_cards", picks: [] });
+  expect((await a.next("error")).code).toBe("BAD_MESSAGE"); // no turn
+  a.send({ type: "play_cards", turn: 1, picks: [] });
   expect((await a.next("error")).code).toBe("NOT_IN_ROOM");
   a.send({ type: "create_room", name: "A", bot: true });
   await a.next("run_state");
@@ -69,7 +71,7 @@ test("malformed messages, unknown rooms and invalid picks get error codes", asyn
   expect((await a.next("error")).code).toBe("WRONG_PHASE");
   a.send({ type: "vote", choice: 0 });
   await a.next("turn_start");
-  a.send({ type: "play_cards", picks: [{ cardUid: "0-99", target: { kind: "enemy", uid: "e0" } }, { cardUid: "0-98", target: { kind: "enemy", uid: "e0" } }] });
+  a.send({ type: "play_cards", turn: 1, picks: [{ cardUid: "0-99", target: { kind: "enemy", uid: "e0" } }, { cardUid: "0-98", target: { kind: "enemy", uid: "e0" } }] });
   expect((await a.next("error")).code).toBe("NOT_IN_HAND");
   a.ws.close();
 });

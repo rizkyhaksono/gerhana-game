@@ -146,3 +146,20 @@ test("pattern advances after each enemy acts", () => {
   const s0 = combat([player(0), player(1)], [enemy("kuntilanak", "e0", { intent: idle })]);
   expect(resolveTurn(s0, [[], []], rng()).state.enemies[0].patternIndex).toBe(1);
 });
+
+test("terbakar killing a thief returns the coins and reports the death", () => {
+  const s0 = combat([player(0, { coins: 0 }), player(1)], [
+    enemy("tuyul", "e0", { hp: 2, statuses: { terbakar: 2 }, stolen: [{ player: 0, amount: 10 }], intent: idle }),
+    enemy("jenglot", "e1", { intent: idle }),
+  ]);
+  const { state, events } = resolveTurn(s0, [[], []], rng());
+  expect(state.players[0].coins).toBe(10);
+  expect(events).toContainEqual({ t: "enemyDied", enemy: "e0" });
+  expect(events).toContainEqual({ t: "coinsReturned", player: 0, amount: 10 });
+});
+
+test("terbakar knocking out a player reports pingsan", () => {
+  const s0 = combat([player(0, { hp: 1, statuses: { terbakar: 2 } }), player(1)], [enemy("jenglot", "e0", { intent: idle })]);
+  const { events } = resolveTurn(s0, [[], []], rng());
+  expect(events).toContainEqual({ t: "pingsan", player: 0 });
+});

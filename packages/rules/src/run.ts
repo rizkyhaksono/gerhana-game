@@ -28,7 +28,7 @@ export type Phase =
   | { kind: "combat"; node: NodeKind | "boss"; combat: CombatState }
   | { kind: "reward"; offers: [string[], string[]]; pusakaOffer: string[] | null; pusakaChooser: 0 | 1 | null; done: [boolean, boolean] }
   | { kind: "rest"; done: [boolean, boolean] }
-  | { kind: "shop"; offers: [string[], string[]]; done: [boolean, boolean] }
+  | { kind: "shop"; offers: [string[], string[]]; done: [boolean, boolean]; removed: [boolean, boolean] }
   | { kind: "ended"; result: "won" | "lost"; stepReached: number };
 
 export interface RunState {
@@ -68,7 +68,7 @@ function enterNode(s: RunState, node: NodeKind | "boss", rng: Rng) {
   if (node === "istirahat") {
     s.phase = { kind: "rest", done: [false, false] };
   } else if (node === "warung") {
-    s.phase = { kind: "shop", offers: [offer(rng, REWARD_POOL[s.players[0].character], 3), offer(rng, REWARD_POOL[s.players[1].character], 3)], done: [false, false] };
+    s.phase = { kind: "shop", offers: [offer(rng, REWARD_POOL[s.players[0].character], 3), offer(rng, REWARD_POOL[s.players[1].character], 3)], done: [false, false], removed: [false, false] };
   } else {
     const rank = node === "pertarungan" ? "normal" : node;
     const enc = rng.pick(ENCOUNTERS.filter((e) => e.rank === rank));
@@ -197,11 +197,12 @@ export function applyAction(input: RunState, a: RunAction, rng: Rng): Result {
       if (ph.kind !== "shop") return { error: "WRONG_PHASE" };
       const p = s.players[a.player];
       const i = p.deck.findIndex((c) => c.uid === a.cardUid);
-      if (ph.done[a.player] || i < 0) return { error: "INVALID" };
+      if (ph.done[a.player] || ph.removed[a.player] || i < 0) return { error: "INVALID" };
       if (p.deck.length <= MIN_DECK) return { error: "DECK_TOO_SMALL" };
       if (p.coins < REMOVE_PRICE) return { error: "NOT_ENOUGH_COINS" };
       p.coins -= REMOVE_PRICE;
       p.deck.splice(i, 1);
+      ph.removed[a.player] = true;
       break;
     }
     case "leave": {
