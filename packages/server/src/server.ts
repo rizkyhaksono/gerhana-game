@@ -81,8 +81,18 @@ export function startServer(port: number, opts: { turnMs?: number } = {}) {
         }
 
         if (!c.room || c.seat === null) return send(ws, { type: "error", code: "NOT_IN_ROOM" });
-        if (msg.type === "play_cards") c.room.playCards(c.seat, msg.picks);
-        else if (msg.type === "play_again") c.room.playAgain();
+        const seat = c.seat;
+        switch (msg.type) {
+          case "play_cards": return c.room.playCards(seat, msg.picks);
+          case "play_again": return c.room.playAgain();
+          case "vote": return c.room.act(seat, { kind: "vote", player: seat, choice: msg.choice });
+          case "choose_card": return c.room.act(seat, { kind: "chooseCard", player: seat, defId: msg.defId });
+          case "choose_pusaka": return c.room.act(seat, { kind: "choosePusaka", player: seat, id: msg.id });
+          case "rest": return c.room.act(seat, { kind: "rest", player: seat, choice: msg.choice });
+          case "shop_buy": return c.room.act(seat, { kind: "shopBuy", player: seat, defId: msg.defId });
+          case "shop_remove": return c.room.act(seat, { kind: "shopRemove", player: seat, cardUid: msg.cardUid });
+          case "leave": return c.room.act(seat, { kind: "leave", player: seat });
+        }
       },
       close(ws) {
         const { room, seat } = ws.data;

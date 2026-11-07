@@ -1,41 +1,35 @@
 import {
-  CHARACTERS, ENCOUNTERS, STARTER_DECKS, autoPick, createRng, resolveTurn, startCombat, startTurn, validatePicks,
-  type CharacterId, type CombatState, type Pick, type PlayerCombat, type Rng,
+  applyAction, autoPick, createRun, validatePicks,
+  type CombatState, type Pick, type RunAction, type RunState,
 } from "@gerhana/rules";
-import { cardView, stateView, type ServerMsg } from "./protocol";
+import { cardView, runView, stateView, type ServerMsg } from "./protocol";
 
 export type Send = (m: ServerMsg) => void;
 interface Seat { name: string; send: Send | null; bot: boolean }
 
-const CHARACTER_OF: Record<0 | 1, CharacterId> = { 0: "pendekar", 1: "dalang" }; // slice: seat decides character
-
-function freshPlayer(id: 0 | 1): PlayerCombat {
-  const character = CHARACTER_OF[id];
-  const maxHp = CHARACTERS[character].maxHp;
-  return {
-    id, character, hp: maxHp, maxHp, block: 0, wayang: 0, statuses: {}, coins: 0, jurusStacks: 0, pingsan: false,
-    draw: STARTER_DECKS[character].map((defId, i) => ({ uid: `${id}-${i}`, defId, upgraded: false })),
-    hand: [], discard: [], damageDealt: 0, pusaka: [],
-  };
-}
-
 /**
- * One co-op combat for two seats. A seat with no connection plays as a bot (auto-pick),
- * so a lone player can fight with a bot partner and a dropped player never blocks the other.
- * shortcut: no reconnect token and no 2-minute grace yet (GDD §6.4); add with the run flow.
+ * One co-op run for two seats. A seat with no connection plays as a bot, so a lone player can
+ * run with a bot partner and a dropped player never blocks the other.
+ * shortcut: no reconnect token and no 2-minute grace yet (GDD §6.4); add before public playtests.
  */
 export class Room {
   seats: [Seat | null, Seat | null] = [null, null];
-  combat: CombatState | null = null;
+  run: RunState | null = null;
   private picks: [Pick[] | null, Pick[] | null] = [null, null];
-  private rng: Rng;
+  private rngSeed: number;
+  private rng: ReturnType<typeof createRun>["rng"] | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private readonly turnMs: number;
-  private fights = 0;
+  private shownTurn = -1;
+  private runs = 0;
 
   constructor(readonly code: string, seed: number, opts: { turnMs?: number } = {}) {
-    this.rng = createRng(seed);
+    this.rngSeed = seed;
     this.turnMs = opts.turnMs ?? 30_000;
+  }
+
+  get combat(): CombatState | null {
+    return this.run?.phase.kind === "combat" ? this.run.phase.combat : null;
   }
 
   join(name: string, send: Send | null, bot = false): 0 | 1 | "FULL" {
@@ -43,7 +37,7 @@ export class Room {
     if (id === null) return "FULL";
     this.seats[id] = { name, send, bot };
     this.broadcastRoom();
-    if (this.seats[0] && this.seats[1]) this.startFight();
+    if (this.seats[0] && this.seats[1]) this.startRun();
     return id;
   }
 
@@ -53,7 +47,7 @@ export class Room {
     if (!seat) return;
     seat.send = null;
     seat.bot = true;
-    if (this.combat?.outcome === "ongoing" && !this.picks[id]) this.playCards(id, autoPick(this.combat, id));
+    if (this.run) this.sync();
   }
 
   get empty() {
@@ -62,21 +56,28 @@ export class Room {
 
   playCards(id: 0 | 1, picks: Pick[]) {
     const c = this.combat;
-    if (!c || c.outcome !== "ongoing") return this.send(id, { type: "error", code: "NO_COMBAT" });
+    if (!c) return this.send(id, { type: "error", code: "NO_COMBAT" });
     if (this.picks[id]) return this.send(id, { type: "error", code: "ALREADY_PLAYED" });
     const err = validatePicks(c, id, picks);
     if (err) return this.send(id, { type: "error", code: err });
     this.picks[id] = picks;
     this.send((1 - id) as 0 | 1, { type: "partner_ready", player: id });
-    if (this.picks[0] && this.picks[1]) this.resolve();
+    if (this.picks[0] && this.picks[1]) this.resolveTurn();
+  }
+
+  /** Any non-combat run action. The seat decides `player`, never the client. */
+  act(id: 0 | 1, a: RunAction) {
+    if (!this.run || a.kind === "playCards") return this.send(id, { type: "error", code: "WRONG_PHASE" });
+    this.apply(id, { ...a, player: id } as RunAction);
   }
 
   playAgain() {
-    if (this.combat && this.combat.outcome !== "ongoing") this.startFight();
+    if (this.run?.phase.kind === "ended") this.startRun();
   }
 
   dispose() {
     if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
   }
 
   // --- internals -------------------------------------------------------------------
@@ -93,42 +94,101 @@ export class Room {
     }
   }
 
-  private startFight() {
-    // First fight is the GDD's opening encounter; later ones draw from normal + elite.
-    const pool = ENCOUNTERS.filter((e) => e.rank !== "boss");
-    const enc = this.fights++ === 0 ? "n1" : this.rng.pick(pool).id;
-    this.combat = startCombat([freshPlayer(0), freshPlayer(1)], enc, this.rng);
-    this.beginTurn();
+  private startRun() {
+    const { state, rng } = createRun(this.rngSeed + this.runs++, ["pendekar", "dalang"]);
+    this.run = state;
+    this.rng = rng;
+    this.shownTurn = -1;
+    this.sync();
   }
 
-  private beginTurn() {
-    const c = (this.combat = startTurn(this.combat!, this.rng));
-    this.picks = [null, null];
-    const view = stateView(c, this.names());
-    for (const id of [0, 1] as const) {
-      this.send(id, { type: "turn_start", turn: c.turn, turnMs: this.turnMs, hand: c.players[id].hand.map(cardView), state: view });
+  /** Apply an action; returns false (and tells the seat) when the rules refuse it. */
+  private apply(id: 0 | 1, a: RunAction): boolean {
+    const r = applyAction(this.run!, a, this.rng!);
+    if ("error" in r) {
+      this.send(id, { type: "error", code: r.error });
+      return false;
     }
-    if (this.turnMs > 0) this.timer = setTimeout(() => this.timeout(), this.turnMs);
+    this.run = r.state;
+    this.sync();
+    return true;
+  }
+
+  private resolveTurn() {
+    this.dispose();
+    const picks: [Pick[], Pick[]] = [this.picks[0]!, this.picks[1]!];
+    this.picks = [null, null];
+    const r = applyAction(this.run!, { kind: "playCards", picks }, this.rng!);
+    if ("error" in r) return; // picks were validated one by one, so this cannot happen
+    this.run = r.state;
+    const after = this.combat;
+    const view = after ? stateView(after, this.names()) : null;
+    for (const id of [0, 1] as const) this.send(id, { type: "turn_resolved", events: r.events, state: view });
+    if (!after) {
+      const lost = this.run.phase.kind === "ended" && this.run.phase.result === "lost";
+      for (const id of [0, 1] as const) this.send(id, { type: "combat_end", outcome: lost ? "lost" : "won" });
+    }
+    this.sync();
+  }
+
+  /** Tell both seats where the run is, then let bot seats take their turn. */
+  private sync() {
+    const run = this.run!;
+    const c = this.combat;
+    if (c) {
+      if (c.turn !== this.shownTurn) {
+        this.shownTurn = c.turn;
+        this.picks = [null, null];
+        const view = stateView(c, this.names());
+        for (const id of [0, 1] as const) {
+          this.send(id, { type: "turn_start", turn: c.turn, turnMs: this.turnMs, hand: c.players[id].hand.map(cardView), state: view });
+        }
+        if (this.turnMs > 0) this.timer = setTimeout(() => this.timeout(), this.turnMs);
+      }
+      for (const id of [0, 1] as const) {
+        if (this.isBot(id) && !this.picks[id] && this.combat === c) this.playCards(id, autoPick(c, id));
+      }
+      return;
+    }
+    this.shownTurn = -1;
+    for (const id of [0, 1] as const) this.send(id, { type: "run_state", run: runView(run, this.names(), id) });
     for (const id of [0, 1] as const) {
-      const seat = this.seats[id];
-      if (seat && (seat.bot || !seat.send) && !this.picks[id]) this.playCards(id, autoPick(this.combat!, id));
-      if (this.combat !== c) return; // the bot's pick resolved the turn already
+      if (this.run !== run) return; // a bot action already moved the run on and re-synced
+      const a = this.isBot(id) ? this.botAction(id) : null;
+      if (a) this.apply(id, a);
+    }
+  }
+
+  private isBot(id: 0 | 1) {
+    const s = this.seats[id];
+    return !!s && (s.bot || !s.send);
+  }
+
+  /** Simple partner: follows the human's vote, takes the first card, heals at rest, skips the shop. */
+  private botAction(id: 0 | 1): RunAction | null {
+    const ph = this.run!.phase;
+    const other = (1 - id) as 0 | 1;
+    switch (ph.kind) {
+      case "vote":
+        if (ph.votes[id] !== null) return null;
+        if (ph.votes[other] !== null) return { kind: "vote", player: id, choice: ph.votes[other] as 0 | 1 };
+        return this.isBot(other) ? { kind: "vote", player: id, choice: 0 } : null;
+      case "reward":
+        if (ph.pusakaOffer && ph.pusakaChooser === id) return { kind: "choosePusaka", player: id, id: ph.pusakaOffer[0] };
+        return ph.done[id] ? null : { kind: "chooseCard", player: id, defId: ph.offers[id][0] ?? null };
+      case "rest":
+        return ph.done[id] ? null : { kind: "rest", player: id, choice: "heal" };
+      case "shop":
+        return ph.done[id] ? null : { kind: "leave", player: id };
+      default:
+        return null;
     }
   }
 
   private timeout() {
     this.timer = null;
-    for (const id of [0, 1] as const) if (this.combat?.outcome === "ongoing" && !this.picks[id]) this.playCards(id, autoPick(this.combat, id));
-  }
-
-  private resolve() {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-    const { state, events } = resolveTurn(this.combat!, [this.picks[0]!, this.picks[1]!], this.rng);
-    this.combat = state;
-    const view = stateView(state, this.names());
-    for (const id of [0, 1] as const) this.send(id, { type: "turn_resolved", events, state: view });
-    if (state.outcome === "ongoing") this.beginTurn();
-    else for (const id of [0, 1] as const) this.send(id, { type: "combat_end", outcome: state.outcome, state: view });
+    const c = this.combat;
+    if (!c) return;
+    for (const id of [0, 1] as const) if (!this.picks[id] && this.combat === c) this.playCards(id, autoPick(c, id));
   }
 }
