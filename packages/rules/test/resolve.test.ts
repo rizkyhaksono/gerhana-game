@@ -1,3 +1,4 @@
+import { ENEMIES } from "../src/content/enemies";
 import { afterAll, expect, test } from "bun:test";
 import { createRng } from "../src/rng";
 import { resolveTurn, type Pick, type Picks } from "../src/combat";
@@ -22,7 +23,7 @@ test("block lands before enemy attack", () => {
   const s0 = combat([p0, player(1)], [enemy("kuntilanak", "e0", { intent: intent({ kind: "attack", amount: 7, target: "random" }, [0]) })]);
   const { state } = resolveTurn(s0, [[pick("0-0", ally(0)), pick("0-1", at("e0"))], []], rng());
   expect(state.players[0].hp).toBe(28);
-  expect(state.enemies[0].hp).toBe(14);
+  expect(state.enemies[0].hp).toBe(ENEMIES.kuntilanak.hp - 6);
 });
 
 test("restu buffs partner serang", () => {
@@ -30,8 +31,8 @@ test("restu buffs partner serang", () => {
   const p1 = player(1, { hand: cards(1, ["restu"]) });
   const { state, events } = resolveTurn(combat([p0, p1], [enemy("genderuwo", "e0", { intent: idle })]),
     [[pick("0-0", at("e0"))], [pick("1-0", ally(0))]], rng());
-  expect(state.enemies[0].hp).toBe(60 - 9);
-  expect(events).toContainEqual({ t: "damage", to: at("e0"), amount: 9, hpAfter: 51 });
+  expect(state.enemies[0].hp).toBe(ENEMIES.genderuwo.hp - 9);
+  expect(events).toContainEqual({ t: "damage", to: at("e0"), amount: 9, hpAfter: ENEMIES.genderuwo.hp - 9 });
 });
 
 test("serempak bonus only when partner hits same enemy", () => {
@@ -39,9 +40,9 @@ test("serempak bonus only when partner hits same enemy", () => {
   const p0 = () => player(0, { hand: cards(0, ["test_serempak"]) });
   const p1 = () => player(1, { hand: cards(1, ["pukul_wayang"]) });
   const same = resolveTurn(combat([p0(), p1()], twoEnemies()), [[pick("0-0", at("e0"))], [pick("1-0", at("e0"))]], rng());
-  expect(same.state.enemies[0].hp).toBe(60 - 8 - 5);
+  expect(same.state.enemies[0].hp).toBe(ENEMIES.genderuwo.hp - 8 - 5);
   const split = resolveTurn(combat([p0(), p1()], twoEnemies()), [[pick("0-0", at("e0"))], [pick("1-0", at("e1"))]], rng());
-  expect(split.state.enemies[0].hp).toBe(60 - 4);
+  expect(split.state.enemies[0].hp).toBe(ENEMIES.genderuwo.hp - 4);
 });
 
 test("jurus stacks grow and reset", () => {
@@ -66,7 +67,7 @@ test("attack on dead target retargets leftmost living enemy", () => {
   const p1 = player(1, { hand: cards(1, ["pukul_wayang"]) });
   const { state } = resolveTurn(combat([p0, p1], [enemy("tuyul", "e0", { hp: 5, intent: idle }), enemy("jenglot", "e1", { intent: idle })]),
     [[pick("0-0", at("e0"))], [pick("1-0", at("e0"))]], rng());
-  expect(state.enemies.map((e) => e.hp)).toEqual([0, 9]);
+  expect(state.enemies.map((e) => e.hp)).toEqual([0, ENEMIES.jenglot.hp - 5]);
 });
 
 test("no enemy left → later cards do nothing, enemies do not act, combat won", () => {
@@ -83,7 +84,7 @@ test("evading pocong halves incoming serang", () => {
   const p0 = player(0, { hand: cards(0, ["tebas"]) });
   const { state } = resolveTurn(combat([p0, player(1)], [enemy("pocong", "e0", { evading: true, intent: idle })]),
     [[pick("0-0", at("e0"))], []], rng());
-  expect(state.enemies[0].hp).toBe(18 - 3);
+  expect(state.enemies[0].hp).toBe(ENEMIES.pocong.hp - 3);
 });
 
 test("steal takes at most player coins", () => {
@@ -135,10 +136,10 @@ test("pingsan player is skipped by later attacks", () => {
 });
 
 test("jenglot drain heals itself by its base amount", () => {
-  const s0 = combat([player(0), player(1)], [enemy("jenglot", "e0", { hp: 10, intent: intent({ kind: "drain", amount: 5 }, [0]) })]);
+  const s0 = combat([player(0), player(1)], [enemy("jenglot", "e0", { hp: ENEMIES.jenglot.hp - 2, intent: intent({ kind: "drain", amount: 5 }, [0]) })]);
   const { state } = resolveTurn(s0, [[], []], rng());
   expect(state.players[0].hp).toBe(25);
-  expect(state.enemies[0].hp).toBe(14);
+  expect(state.enemies[0].hp).toBe(ENEMIES.jenglot.hp); // healed 5, capped at max
 });
 
 test("pattern advances after each enemy acts", () => {

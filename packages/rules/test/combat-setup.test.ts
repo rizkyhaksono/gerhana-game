@@ -1,3 +1,4 @@
+import { ENEMIES } from "../src/content/enemies";
 import { expect, test } from "bun:test";
 import { createRng } from "../src/rng";
 import { endTurn, startCombat, startTurn } from "../src/combat";
@@ -5,7 +6,7 @@ import { cards, combat, enemy, player } from "./fixtures";
 
 test("startCombat builds enemies from the encounter at full hp", () => {
   const s = startCombat([player(0, { draw: cards(0, ["tebas"]) }), player(1)], "n2", createRng(1));
-  expect(s.enemies.map((e) => [e.defId, e.hp, e.uid])).toEqual([["pocong", 18, "e0"], ["jenglot", 14, "e1"]]);
+  expect(s.enemies.map((e) => [e.defId, e.hp, e.uid])).toEqual([["pocong", ENEMIES.pocong.hp, "e0"], ["jenglot", ENEMIES.jenglot.hp, "e1"]]);
   expect(s.outcome).toBe("ongoing");
 });
 

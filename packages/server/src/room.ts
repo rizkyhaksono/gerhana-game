@@ -1,5 +1,5 @@
 import {
-  applyAction, autoPick, createRun, validatePicks,
+  applyAction, autoPick, botAction, botPicks, createRun, validatePicks,
   type CombatState, type Pick, type RunAction, type RunState,
 } from "@gerhana/rules";
 import { cardView, runView, stateView, type ServerMsg } from "./protocol";
@@ -146,7 +146,7 @@ export class Room {
         if (this.turnMs > 0) this.timer = setTimeout(() => this.timeout(), this.turnMs);
       }
       for (const id of [0, 1] as const) {
-        if (this.isBot(id) && !this.picks[id] && this.combat === c) this.playCards(id, autoPick(c, id));
+        if (this.isBot(id) && !this.picks[id] && this.combat === c) this.playCards(id, botPicks(c, id));
       }
       return;
     }
@@ -164,25 +164,14 @@ export class Room {
     return !!s && (s.bot || !s.send);
   }
 
-  /** Simple partner: follows the human's vote, takes the first card, heals at rest, skips the shop. */
+  /** Bot seat: the rules package's bot, which follows a human's map vote and plays carefully. */
   private botAction(id: 0 | 1): RunAction | null {
     const ph = this.run!.phase;
-    const other = (1 - id) as 0 | 1;
-    switch (ph.kind) {
-      case "vote":
-        if (ph.votes[id] !== null) return null;
-        if (ph.votes[other] !== null) return { kind: "vote", player: id, choice: ph.votes[other] as 0 | 1 };
-        return this.isBot(other) ? { kind: "vote", player: id, choice: 0 } : null;
-      case "reward":
-        if (ph.pusakaOffer && ph.pusakaChooser === id) return { kind: "choosePusaka", player: id, id: ph.pusakaOffer[0] };
-        return ph.done[id] ? null : { kind: "chooseCard", player: id, defId: ph.offers[id][0] ?? null };
-      case "rest":
-        return ph.done[id] ? null : { kind: "rest", player: id, choice: "heal" };
-      case "shop":
-        return ph.done[id] ? null : { kind: "leave", player: id };
-      default:
-        return null;
+    if (ph.kind === "vote" && (ph.votes[id] !== null || (ph.votes[1 - id] === null && !this.isBot((1 - id) as 0 | 1)))) return null;
+    if ((ph.kind === "reward" || ph.kind === "rest" || ph.kind === "shop") && ph.done[id]) {
+      return ph.kind === "reward" && ph.pusakaOffer && ph.pusakaChooser === id ? botAction(this.run!, id, this.rng!) : null;
     }
+    return botAction(this.run!, id, this.rng!);
   }
 
   private timeout() {

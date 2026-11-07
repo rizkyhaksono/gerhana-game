@@ -8,10 +8,10 @@ test("starter decks match spec", () => {
   expect(CHARACTERS.dalang.maxHp).toBe(36);
 });
 
-test("enemy hp matches spec", () => {
+test("enemy hp matches the sim-tuned values", () => {
   expect(Object.fromEntries(Object.values(ENEMIES).map((e) => [e.id, e.hp]))).toEqual({
-    tuyul: 12, kuntilanak: 20, pocong: 18, babi_ngepet: 16, jenglot: 14,
-    genderuwo: 60, wewe_gombel: 50, banaspati: 140,
+    tuyul: 46, kuntilanak: 76, pocong: 68, babi_ngepet: 61, jenglot: 53,
+    genderuwo: 156, wewe_gombel: 130, banaspati: 172,
   });
   expect(ENEMIES.banaspati.phase2?.belowHpPct).toBe(50);
 });

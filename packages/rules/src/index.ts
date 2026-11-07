@@ -13,3 +13,4 @@ export { REWARD_POOL } from "./content/cards";
 export { PUSAKA, activePusaka } from "./content/pusaka";
 export * from "./map";
 export * from "./run";
+export * from "./bot";

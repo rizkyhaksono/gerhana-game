@@ -1,3 +1,4 @@
+import { ENEMIES } from "../src/content/enemies";
 import { expect, test } from "bun:test";
 import { CARDS, REWARD_POOL } from "../src/content/cards";
 import { PUSAKA } from "../src/content/pusaka";
@@ -34,7 +35,7 @@ test("keris kembar adds 2 to serempak for both players", () => {
   const { state } = resolveTurn(combat([p0, p1], [enemy("banaspati", "e0", { intent: idle })]),
     [[{ cardUid: "0-0", target: at }], [{ cardUid: "1-0", target: at }]], createRng(1));
   // serbu_bersama 6 + 6 + 2, lakon_kembar 5 + 5 + 2 (shared from partner)
-  expect(state.enemies[0].hp).toBe(140 - 14 - 12);
+  expect(state.enemies[0].hp).toBe(ENEMIES.banaspati.hp - 14 - 12);
 });
 
 test("combatStart pusaka grant block and shared wayang", () => {
