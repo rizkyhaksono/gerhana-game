@@ -75,6 +75,13 @@ export function startServer(port: number, opts: { turnMs?: number } = {}) {
           } else {
             room = rooms.get(msg.code);
             if (!room) return send(ws, { type: "error", code: "NO_ROOM" });
+            if (msg.token) {
+              const back = room.rejoin(msg.token, (m) => send(ws, m));
+              if (back === null) return send(ws, { type: "error", code: "BAD_TOKEN" });
+              c.room = room;
+              c.seat = back;
+              return;
+            }
           }
           c.room = room;
           const seat = room.join(msg.name, (m) => send(ws, m));
@@ -99,15 +106,20 @@ export function startServer(port: number, opts: { turnMs?: number } = {}) {
           case "shop_buy": return c.room.act(seat, { kind: "shopBuy", player: seat, defId: msg.defId });
           case "shop_remove": return c.room.act(seat, { kind: "shopRemove", player: seat, cardUid: msg.cardUid });
           case "leave": return c.room.act(seat, { kind: "leave", player: seat });
+          case "ping": return c.room.ping(seat, msg.target);
         }
       },
       close(ws) {
         const { room, seat } = ws.data;
         if (!room || seat === null) return;
         room.leave(seat);
+        // keep an empty room through the grace period so its players can reconnect
         if (room.empty) {
-          room.dispose();
-          rooms.delete(room.code);
+          setTimeout(() => {
+            if (!room.empty) return;
+            room.dispose();
+            rooms.delete(room.code);
+          }, room.graceMs);
         }
       },
     },

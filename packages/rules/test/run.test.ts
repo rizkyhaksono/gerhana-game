@@ -163,3 +163,22 @@ test("shop allows one removal per visit", () => {
   const s = ok(applyAction(s0, { kind: "shopRemove", player: 0, cardUid: "0-0" }, rng));
   expect(applyAction(s, { kind: "shopRemove", player: 0, cardUid: "0-1" }, rng)).toEqual({ error: "INVALID" });
 });
+
+test("different votes report a coin flip", () => {
+  const { state, rng } = createRun(5, ["pendekar", "dalang"]);
+  const s = ok(applyAction(state, { kind: "vote", player: 0, choice: 0 }, rng));
+  const r = applyAction(s, { kind: "vote", player: 1, choice: 1 }, rng);
+  if ("error" in r) throw new Error(r.error);
+  const flip = r.events.find((e) => e.t === "coinFlip");
+  expect(flip).toBeDefined();
+  expect([0, 1]).toContain((flip as { choice: number }).choice);
+});
+
+test("run stats count damage and plays for the end summary", () => {
+  const { s: s0, rng } = enterCombat(2);
+  oneHitWin(s0);
+  const s = ok(playTurn(s0, rng));
+  const total = s.stats[0].damage + s.stats[1].damage;
+  expect(total).toBeGreaterThan(0);
+  expect(Object.values(s.stats[0].plays).reduce((a, b) => a + b, 0) + Object.values(s.stats[1].plays).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+});

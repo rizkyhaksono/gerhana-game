@@ -211,18 +211,18 @@ export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { stat
     }),
   );
 
-  const hitPlayer = (p: PlayerCombat, dmg: number) => {
+  const hitPlayer = (p: PlayerCombat, dmg: number, from: Target) => {
     Object.assign(p, absorb(dmg, p));
-    events.push({ t: "damage", to: { kind: "player", id: p.id }, amount: dmg, hpAfter: p.hp });
+    events.push({ t: "damage", from, to: { kind: "player", id: p.id }, amount: dmg, hpAfter: p.hp });
     if (p.hp === 0 && !p.pingsan) {
       p.pingsan = true;
       events.push({ t: "pingsan", player: p.id });
     }
   };
-  const statusOn = (to: Target, status: StatusId, stacks: number) => {
+  const statusOn = (from: Target, to: Target, status: StatusId, stacks: number) => {
     const holder = to.kind === "player" ? s.players[to.id] : enemyById(to.uid)!;
     addStatus(holder.statuses, status, stacks);
-    events.push({ t: "status", to, status, stacks });
+    events.push({ t: "status", from, to, status, stacks });
   };
 
   // Jurus Berantai: a turn with at least one jurus card grows the chain, any other turn breaks it.
@@ -235,7 +235,7 @@ export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { stat
   const buff = [0, 0];
   for (const p of s.players) {
     for (const c of played[p.id].filter((c) => c.def.type !== "serang")) {
-      events.push({ t: "card", player: p.id, cardUid: c.inst.uid, target: c.pick.target });
+      events.push({ t: "card", player: p.id, cardUid: c.inst.uid, defId: c.inst.defId, target: c.pick.target });
       const to = c.pick.target.kind === "player" ? s.players[c.pick.target.id] : p;
       for (const fx of c.effects) {
         if (fx.kind === "block") {
@@ -247,7 +247,7 @@ export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { stat
         } else if (fx.kind === "buffAttack") {
           buff[to.id] += fx.amount;
         } else if (fx.kind === "status") {
-          statusOn(fx.on === "self" ? { kind: "player", id: p.id } : c.pick.target, fx.status, fx.stacks);
+          statusOn({ kind: "player", id: p.id }, fx.on === "self" ? { kind: "player", id: p.id } : c.pick.target, fx.status, fx.stacks);
         }
       }
     }
@@ -262,7 +262,7 @@ export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { stat
       if (!e || !isActive(e)) e = s.enemies.find(isActive);
       if (!e) continue;
       const to: Target = { kind: "enemy", uid: e.uid };
-      events.push({ t: "card", player: p.id, cardUid: c.inst.uid, target: to });
+      events.push({ t: "card", player: p.id, cardUid: c.inst.uid, defId: c.inst.defId, target: to });
       const together = c.def.tags.includes("serempak") && aimed[1 - p.id].has(original);
       const pusakaBonus = activePusaka(s.players, p.id).reduce((n, x) => n + (x.hook.on === "serempakBonus" ? x.hook.amount : 0), 0);
       for (const fx of c.effects) {
@@ -272,13 +272,13 @@ export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { stat
           const before = e.hp;
           e.hp = Math.max(0, e.hp - dmg);
           p.damageDealt += before - e.hp;
-          events.push({ t: "damage", to, amount: dmg, hpAfter: e.hp });
+          events.push({ t: "damage", from: { kind: "player", id: p.id }, to, amount: dmg, hpAfter: e.hp });
           if (e.hp === 0) {
             enemyDies(s, e, events);
             break;
           }
         } else if (fx.kind === "status") {
-          statusOn(fx.on === "self" ? { kind: "player", id: p.id } : to, fx.status, fx.stacks);
+          statusOn({ kind: "player", id: p.id }, fx.on === "self" ? { kind: "player", id: p.id } : to, fx.status, fx.stacks);
         }
       }
     }
@@ -291,12 +291,13 @@ export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { stat
     for (const id of it.targets) {
       const p = s.players[id];
       if (p.pingsan) continue;
-      const attack = (amount: number) => hitPlayer(p, attackDamage(amount, e.statuses, p.statuses));
+      const src: Target = { kind: "enemy", uid: e.uid };
+      const attack = (amount: number) => hitPlayer(p, attackDamage(amount, e.statuses, p.statuses), src);
       if (it.kind === "attack") attack(it.amount);
-      else if (it.kind === "status") statusOn({ kind: "player", id }, it.status, it.stacks);
+      else if (it.kind === "status") statusOn(src, { kind: "player", id }, it.status, it.stacks);
       else if (it.kind === "attackStatus") {
         attack(it.amount);
-        statusOn({ kind: "player", id }, it.status, it.stacks);
+        statusOn(src, { kind: "player", id }, it.status, it.stacks);
       } else if (it.kind === "steal") {
         if (it.attack > 0) attack(it.attack);
         const take = Math.min(p.coins, it.amount);
@@ -310,7 +311,7 @@ export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { stat
         if (p.wayang > 0) {
           p.wayang = 0;
           events.push({ t: "wayang", player: id, hp: 0 });
-        } else statusOn({ kind: "player", id }, "lemah", it.fallbackLemah);
+        } else statusOn(src, { kind: "player", id }, "lemah", it.fallbackLemah);
       }
     }
     if (it.kind === "flee") {

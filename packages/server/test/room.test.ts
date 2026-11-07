@@ -127,7 +127,7 @@ test("play_again after the run ends starts a new run", () => {
 
 test("a dropped player is replaced by the bot and the run continues", () => {
   const a = inbox(), b = inbox();
-  const room = new Room("ABCDEF", 3, { turnMs: 0 });
+  const room = new Room("ABCDEF", 3, { turnMs: 0, graceMs: 0 });
   room.join("A", a.send);
   room.join("B", b.send);
   room.leave(1);
@@ -148,4 +148,69 @@ test("a play_cards for an earlier turn is rejected, never applied to the new han
   room.playCards(1, autoPick(room.combat!, 1), t1);
   room.playCards(0, late, t1);
   expect(a.last("error")).toEqual({ type: "error", code: "STALE_TURN" });
+});
+
+test("ping on a living enemy reaches the partner", () => {
+  const a = inbox(), b = inbox();
+  const room = new Room("ABCDEF", 3, { turnMs: 0 });
+  room.join("A", a.send);
+  room.join("B", b.send);
+  room.act(0, { kind: "vote", player: 0, choice: 0 });
+  room.act(1, { kind: "vote", player: 1, choice: 0 });
+  const uid = room.combat!.enemies[0].uid;
+  room.ping(0, uid);
+  expect(b.last("ping")).toEqual({ type: "ping", from: 0, target: uid });
+  room.ping(0, "zz");
+  expect(a.last("error")).toEqual({ type: "error", code: "BAD_TARGET" });
+});
+
+test("an idle player is played for when the phase timer runs out", async () => {
+  const a = inbox(), b = inbox();
+  const room = new Room("ABCDEF", 3, { turnMs: 0, phaseMs: 20 });
+  room.join("A", a.send);
+  room.join("B", b.send);
+  expect(a.last("run_state")!.run.phaseMs).toBe(20);
+  room.act(0, { kind: "vote", player: 0, choice: 0 });
+  await Bun.sleep(60);
+  expect(room.run!.phase.kind).toBe("combat");
+  room.dispose();
+});
+
+test("a dropped player can rejoin with their token inside the grace period", async () => {
+  const a = inbox(), b = inbox(), b2 = inbox();
+  const room = new Room("ABCDEF", 3, { turnMs: 0, graceMs: 40 });
+  room.join("A", a.send);
+  room.join("B", b.send);
+  const token = b.last("room_state")!.token!;
+  expect(a.last("room_state")!.token).not.toBe(token);
+  room.leave(1);
+  room.act(0, { kind: "vote", player: 0, choice: 0 });
+  expect(room.run!.phase.kind).toBe("vote"); // waits for B during the grace period
+  expect(room.rejoin(token, b2.send)).toBe(1);
+  expect(b2.last("run_state")!.run.phase.kind).toBe("vote");
+  expect(room.rejoin("wrong", () => {})).toBeNull();
+  room.dispose();
+});
+
+test("after the grace period the bot takes the empty seat", async () => {
+  const a = inbox(), b = inbox();
+  const room = new Room("ABCDEF", 3, { turnMs: 0, graceMs: 20 });
+  room.join("A", a.send);
+  room.join("B", b.send);
+  room.leave(1);
+  room.act(0, { kind: "vote", player: 0, choice: 1 });
+  await Bun.sleep(60);
+  expect(room.run!.phase.kind).toBe("combat");
+  room.dispose();
+});
+
+test("different votes tell both players about the coin flip", () => {
+  const a = inbox(), b = inbox();
+  const room = new Room("ABCDEF", 5, { turnMs: 0 });
+  room.join("A", a.send);
+  room.join("B", b.send);
+  room.act(0, { kind: "vote", player: 0, choice: 0 });
+  room.act(1, { kind: "vote", player: 1, choice: 1 });
+  expect(a.last("coin_flip")).toMatchObject({ type: "coin_flip" });
+  expect(b.last("coin_flip")).toMatchObject({ type: "coin_flip" });
 });

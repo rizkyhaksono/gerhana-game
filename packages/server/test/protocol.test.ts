@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { stateView } from "../src/protocol";
+import { eventsView, stateView } from "../src/protocol";
 import { clientIp } from "../src/server";
 import type { CombatState } from "@gerhana/rules";
 
@@ -18,4 +18,9 @@ test("client ip trusts X-Forwarded-For only from a loopback proxy", () => {
   expect(clientIp("::1", "203.0.113.9")).toBe("203.0.113.9");
   expect(clientIp("198.51.100.4", "203.0.113.9")).toBe("198.51.100.4");
   expect(clientIp("127.0.0.1", null)).toBe("127.0.0.1");
+});
+
+test("card events reach the client with the card's name", () => {
+  const out = eventsView([{ t: "card", player: 0, cardUid: "0-1", defId: "tebas", target: { kind: "enemy", uid: "e0" } }]);
+  expect(out[0]).toMatchObject({ name: "Tebas" });
 });

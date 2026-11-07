@@ -7,7 +7,7 @@ export const PROTOCOL_VERSION = 1;
 
 export type ClientMsg =
   | { type: "create_room"; name: string; bot: boolean }
-  | { type: "join_room"; code: string; name: string }
+  | { type: "join_room"; code: string; name: string; token?: string }
   | { type: "play_cards"; picks: Pick[]; turn: number }
   | { type: "vote"; choice: 0 | 1 }
   | { type: "choose_card"; defId: string | null }
@@ -16,6 +16,7 @@ export type ClientMsg =
   | { type: "shop_buy"; defId: string }
   | { type: "shop_remove"; cardUid: string }
   | { type: "leave" }
+  | { type: "ping"; target: string }
   | { type: "play_again" };
 
 export interface CardView { uid: string; defId: string; upgraded: boolean; type: string; name: string; text: string; tags: string[] }
@@ -40,11 +41,14 @@ export type PhaseView =
   | { kind: "rest"; done: boolean[] }
   | { kind: "shop"; offers: CardView[]; done: boolean[]; removed: boolean; cardPrice: number; removePrice: number }
   | { kind: "ended"; result: string; stepReached: number };
-export interface RunView { step: number; steps: number; map: string[][]; players: RunPlayerView[]; deck: CardView[]; phase: PhaseView }
+export interface RunView { step: number; steps: number; map: string[][]; players: RunPlayerView[]; deck: CardView[]; phase: PhaseView; phaseMs?: number; summary?: SummaryView }
+export interface SummaryView { players: { damage: number; favorite: string | null }[] }
 
 export type ServerMsg =
   | { type: "run_state"; run: RunView }
-  | { type: "room_state"; code: string; you: 0 | 1; names: (string | null)[] }
+  | { type: "room_state"; code: string; you: 0 | 1; token?: string; names: (string | null)[] }
+  | { type: "ping"; from: 0 | 1; target: string }
+  | { type: "coin_flip"; choice: 0 | 1 }
   | { type: "turn_start"; turn: number; turnMs: number; hand: CardView[]; state: StateView }
   | { type: "partner_ready"; player: 0 | 1 }
   | { type: "turn_resolved"; events: GameEvent[]; state: StateView | null }
@@ -77,8 +81,20 @@ export function runView(r: RunState, names: string[], seat: 0 | 1): RunView {
     })),
     deck: r.players[seat].deck.map(cardView),
     phase,
+    ...(ph.kind === "ended" ? {
+      summary: {
+        players: r.stats.map((st) => {
+          const fav = Object.entries(st.plays).sort((a, b) => b[1] - a[1])[0];
+          return { damage: st.damage, favorite: fav ? cardName(fav[0]) : null };
+        }),
+      },
+    } : {}),
   };
 }
+
+/** Events for the client: card events also carry the card's display name. */
+export const eventsView = (events: GameEvent[]) =>
+  events.map((e) => (e.t === "card" ? { ...e, name: cardName(e.defId) } : e));
 
 /** Public state only: hands, draw piles and RNG stay on the server. */
 export function stateView(s: CombatState, names: string[]): StateView {
@@ -135,7 +151,8 @@ export function parseClient(raw: string): ClientMsg | null {
     case "create_room":
       return { type: "create_room", name: cleanName(m.name), bot: m.bot === true };
     case "join_room":
-      return str(m.code, 6) ? { type: "join_room", code: m.code.toUpperCase(), name: cleanName(m.name) } : null;
+      if (!str(m.code, 6) || (m.token !== undefined && !str(m.token, 64))) return null;
+      return { type: "join_room", code: m.code.toUpperCase(), name: cleanName(m.name), ...(m.token ? { token: m.token as string } : {}) };
     case "play_cards": {
       if (!Array.isArray(m.picks) || m.picks.length > 2) return null;
       const picks = m.picks.map(parsePick);
@@ -159,6 +176,8 @@ export function parseClient(raw: string): ClientMsg | null {
       return str(m.cardUid, 16) ? { type: "shop_remove", cardUid: m.cardUid } : null;
     case "leave":
       return { type: "leave" };
+    case "ping":
+      return str(m.target, 8) ? { type: "ping", target: m.target } : null;
     case "play_again":
       return { type: "play_again" };
     default:
