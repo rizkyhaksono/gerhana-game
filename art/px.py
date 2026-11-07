@@ -29,6 +29,7 @@ PALETTE = {
     "hutan": "2c5a3f",
     "lumut": "6f9a4a",
     "gaib": "54e0c8",           # spirit glow
+    "tinta": "ffffff",          # font ink only: Godot tints it with font_color
 }
 RGB = {k: tuple(int(v[i:i + 2], 16) for i in (0, 2, 4)) for k, v in PALETTE.items()}
 

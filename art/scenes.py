@@ -14,11 +14,11 @@ def _sky(c, bands, top=0, bottom=GROUND):
         c.dither(0, y0 + int(span * 0.5), W, int(span * 0.5) + 1, bands[i + 1], 8)
 
 
-def _treeline(c, base, amp, color, seed, crowns):
+def _treeline(c, base, amp, color, seed, crowns, bottom=GROUND):
     r = rng(seed)
     for x in range(W):
         top = base - int(amp * (0.5 + 0.5 * ((x * 7 + seed) % 23) / 23))
-        c.rect(x, top, 1, GROUND - top + 1, color)
+        c.rect(x, top, 1, bottom - top + 1, color)
     for _ in range(crowns):
         c.ellipse(r.randint(0, W), base - amp - r.randint(0, 8), r.randint(8, 16), r.randint(6, 10), color)
 
@@ -103,32 +103,62 @@ def panel():
 
 
 def button(state):
-    """16x16 button, slice margins 4px. States: normal, hover, pressed, disabled."""
-    fill, rim, shade = {
-        "normal": ("sogan", "prada", "sogan_tua"),
-        "hover": ("coklat", "prada_terang", "sogan"),
-        "pressed": ("sogan_tua", "prada", "malam"),
-        "disabled": ("nila", "kabut", "nila_tua"),
+    """16x16 button, 9-slice margins 3px: night cloth with a gold-leaf rim and notched corners."""
+    fill, rim, lip = {
+        "normal": ("nila_tua", "prada", "malam"),
+        "hover": ("nila", "prada_terang", "malam"),
+        "pressed": ("malam", "prada", "nila_tua"),
+        "disabled": ("nila_tua", "nila", "malam"),
     }[state]
     c = Canvas(16, 16)
-    c.rect(1, 0, 14, 16, "malam"); c.rect(0, 1, 16, 14, "malam")
-    c.rect(1, 1, 14, 14, rim); c.rect(2, 2, 12, 12, fill)
-    if state != "pressed":
-        c.rect(2, 12, 12, 2, shade)                                        # bottom lip = raised
-    else:
-        c.rect(2, 2, 12, 2, shade)
+    c.rect(1, 0, 14, 16, rim)
+    c.rect(0, 1, 16, 14, rim)
+    c.rect(1, 1, 14, 14, fill)
+    c.rect(1, 14 if state != "pressed" else 1, 14, 1, lip)                # shadow lip; flips when pressed
     return c
 
 
 def bar(kind):
-    """34x5 bar frame or 32x3 fill. kind: frame, hp, perisai, wayang."""
+    """36x9 bar frame or 34x7 fill; the client writes the number on top. kind: frame, hp, perisai, wayang."""
     if kind == "frame":
-        c = Canvas(34, 5)
-        c.rect(0, 0, 34, 5, "malam"); c.rect(1, 1, 32, 3, "nila_tua")
+        c = Canvas(36, 9)
+        c.rect(1, 0, 34, 9, "malam"); c.rect(0, 1, 36, 7, "malam"); c.rect(1, 1, 34, 7, "nila_tua")
         return c
-    color, light = {"hp": ("merah_gerhana", "api"), "perisai": ("kabut", "perak"), "wayang": ("prada", "prada_terang")}[kind]
-    c = Canvas(32, 3)
-    c.rect(0, 0, 32, 3, color); c.rect(0, 0, 32, 1, light)
+    color, light = {"hp": ("darah", "merah_gerhana"), "perisai": ("nila", "kabut"), "wayang": ("sogan", "prada")}[kind]
+    c = Canvas(34, 7)
+    c.rect(0, 0, 34, 7, color); c.rect(0, 0, 34, 2, light)
+    return c
+
+
+def title_screen(mood):
+    """320x180 backdrop for menu and run end. mood: menu (eclipse in progress), won (moon freed), lost (blood moon)."""
+    c = Canvas(W, H)
+    sky = {"menu": ["malam", "nila_tua", "nila"], "won": ["nila_tua", "nila", "kabut"], "lost": ["malam", "nila_tua", "darah"]}[mood]
+    _sky(c, sky, 0, 140)
+    c.rect(0, 140, W, H - 140, sky[-1])
+    r = rng(12)
+    for _ in range(80):
+        c.set(r.randint(0, W), r.randint(0, 110), "perak")
+    cx, cy, rad = 160, 42, 26
+    if mood == "won":
+        c.dither_ellipse(cx, cy, rad + 10, rad + 10, "perak", 3)
+        c.ellipse(cx, cy, rad, rad, "putih_kafan")
+        c.ellipse(cx - 6, cy - 5, 6, 5, "perak"); c.ellipse(cx + 9, cy + 7, 4, 3, "perak")
+    elif mood == "lost":
+        c.dither_ellipse(cx, cy, rad + 12, rad + 12, "merah_gerhana", 4)
+        c.ellipse(cx, cy, rad, rad, "merah_gerhana"); c.ellipse(cx, cy, rad - 3, rad - 3, "darah")
+    else:
+        c.dither_ellipse(cx, cy, rad + 12, rad + 12, "darah", 4)
+        c.dither_ellipse(cx, cy, rad + 6, rad + 6, "darah", 8)
+        c.ellipse(cx, cy, rad + 1, rad + 1, "merah_gerhana")
+        c.ellipse(cx, cy, rad, rad, "perak")
+        c.ellipse(cx + 11, cy - 3, rad, rad, "malam")                      # the swallowing shadow
+    _treeline(c, 134, 12, "nila_tua", 21, 10, bottom=H)                    # distant forest
+    c.dither(0, 128, W, 10, "kabut", 3)                                    # mist
+    _treeline(c, 156, 10, "malam", 4, 14, bottom=H)                        # near forest
+    for gx in (30, 258):                                                   # gunungan silhouettes framing the title
+        c.poly([(gx + 16, 98), (gx + 32, 128), (gx + 28, 164), (gx + 4, 164), (gx, 128)], "malam")
+        c.rect(gx + 14, 164, 4, 16, "malam")
     return c
 
 
@@ -146,15 +176,15 @@ def mockup(sprites, icons, cards, art, eclipse):
         c.paste(s, x, feet(s))
         c.paste(icons[intent], x + 10, feet(s) - 12)
     for x in (46, 84, 196, 232, 268):                                      # hp bars
-        c.paste(bar("frame"), x - 1, GROUND + 4)
+        c.paste(bar("frame"), x - 2, GROUND + 3)
         fill = bar("hp")
-        fill.rect(22, 0, 10, 3, None)
-        c.paste(fill, x, GROUND + 5)
+        fill.rect(24, 0, 10, 7, None)
+        c.paste(fill, x - 1, GROUND + 4)
     c.paste(eclipse[3], 148, 4)
     hand = [("serang", "tebas"), ("tahan", "tangkis"), ("serang", "jurus_harimau"), ("bantu", "restu")]
     for i, (kind, name) in enumerate(hand):
-        x, y = 58 + i * 52, 128 - (6 if i == 2 else 0)                     # third card lifted = selected
+        x, y = 34 + i * 64, 112 - (6 if i == 2 else 0)                     # third card lifted = selected
         c.paste(cards[kind], x, y)
-        c.paste(art[name], x + 12, y + 14)
+        c.paste(art[name], x + 18, y + 7)
     c.paste(icons["ping"], 236, 64)
     return c

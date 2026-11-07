@@ -1,0 +1,31 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "gerhana",
+    },
+    "packages/rules": {
+      "name": "@gerhana/rules",
+    },
+    "packages/server": {
+      "name": "@gerhana/server",
+      "dependencies": {
+        "@gerhana/rules": "workspace:*",
+      },
+    },
+    "packages/sim": {
+      "name": "@gerhana/sim",
+      "dependencies": {
+        "@gerhana/rules": "workspace:*",
+      },
+    },
+  },
+  "packages": {
+    "@gerhana/rules": ["@gerhana/rules@workspace:packages/rules"],
+
+    "@gerhana/server": ["@gerhana/server@workspace:packages/server"],
+
+    "@gerhana/sim": ["@gerhana/sim@workspace:packages/sim"],
+  }
+}

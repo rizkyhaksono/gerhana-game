@@ -1,0 +1,7 @@
+{
+  "name": "@gerhana/sim",
+  "private": true,
+  "type": "module",
+  "scripts": { "sim": "bun src/index.ts" },
+  "dependencies": { "@gerhana/rules": "workspace:*" }
+}

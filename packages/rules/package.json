@@ -1,0 +1,6 @@
+{
+  "name": "@gerhana/rules",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts"
+}

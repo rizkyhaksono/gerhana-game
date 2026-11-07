@@ -193,35 +193,50 @@ CARD_TYPES = {  # border, banner
 }
 
 
+CARD_W, CARD_H = 60, 80
+ART_AT = (18, 6)          # where the 24x24 card art goes
+TEXT_AT = (6, 35, 48, 39)  # x, y, w, h of the lontar panel: card name, then rules text
+
+
+def _notched(c, x, y, w, h, color):
+    """Rectangle with 1px notched corners: the pixel-art rounded corner."""
+    c.rect(x + 1, y, w - 2, h, color)
+    c.rect(x, y + 1, w, h - 2, color)
+
+
 def card_frame(kind, upgraded=False):
     border, banner = CARD_TYPES[kind]
     rim = "prada" if upgraded else border
-    c = Canvas(48, 64)
-    c.rect(1, 0, 46, 64, "malam"); c.rect(0, 1, 48, 62, "malam")            # rounded silhouette
-    c.rect(1, 1, 46, 62, rim)
-    c.rect(3, 3, 42, 58, "nila_tua")
-    c.rect(3, 3, 42, 9, banner)                                            # name banner
-    c.rect(4, 13, 40, 27, "malam"); c.rect(5, 14, 38, 25, "nila_tua")      # art window
-    c.rect(4, 42, 40, 18, "kulit"); c.rect(5, 43, 38, 16, "kulit_terang")  # lontar text panel
-    for x, y in ((2, 2), (45, 2), (2, 61), (45, 61)):                       # kawung corner studs
-        c.set(x, y, "prada_terang" if upgraded else "prada")
-    c.poly([(24, 57), (27, 60), (24, 63), (21, 60)], rim)                  # type gem
-    c.set(24, 60, "putih_kafan")
+    c = Canvas(CARD_W, CARD_H)
+    _notched(c, 0, 0, CARD_W, CARD_H, "malam")
+    _notched(c, 1, 1, CARD_W - 2, CARD_H - 2, rim)
+    _notched(c, 3, 3, CARD_W - 6, CARD_H - 6, "nila_tua")
+    c.rect(4, 4, 52, 28, banner)                                           # art window, tinted by type
+    c.dither(4, 4, 52, 28, "nila_tua", 10)
+    c.rect(4, 32, 52, 1, rim)
+    x, y, w, h = TEXT_AT
+    c.rect(x - 2, y - 2, w + 4, h + 3, "kulit")                            # lontar leaf
+    c.rect(x - 1, y - 1, w + 2, h + 1, "kulit_terang")
+    c.poly([(30, 74), (33, 77), (30, 80), (27, 77)], rim)                  # type gem
+    c.set(30, 77, "putih_kafan")
+    for px_, py_ in ((2, 2), (CARD_W - 3, 2), (2, CARD_H - 3), (CARD_W - 3, CARD_H - 3)):
+        c.set(px_, py_, "prada_terang" if upgraded else rim)
     if upgraded:
-        for x in range(6, 43, 6):
-            c.set(x, 1, "prada_terang")
+        for xx in range(8, CARD_W - 6, 8):
+            c.set(xx, 1, "prada_terang")
     return c
 
 
 def card_back():
-    c = card_frame("tahan")
-    c.rect(3, 3, 42, 58, "nila_tua")
-    for y in range(6, 60, 8):                                              # kawung lattice
-        for x in range(6 + (y // 8 % 2) * 4, 44, 8):
+    c = Canvas(CARD_W, CARD_H)
+    _notched(c, 0, 0, CARD_W, CARD_H, "malam")
+    _notched(c, 1, 1, CARD_W - 2, CARD_H - 2, "prada")
+    _notched(c, 3, 3, CARD_W - 6, CARD_H - 6, "nila_tua")
+    for y in range(8, CARD_H - 6, 8):                                      # kawung lattice
+        for x in range(8 + (y // 8 % 2) * 4, CARD_W - 6, 8):
             c.dots([(x, y - 1), (x - 1, y), (x + 1, y), (x, y + 1)], "nila")
-    c.ellipse(24, 30, 10, 10, "merah_gerhana")                             # eclipse
-    c.ellipse(26, 29, 9, 9, "malam")
-    c.rect(1, 1, 46, 2, "prada"); c.rect(1, 61, 46, 2, "prada")
+    c.ellipse(30, 40, 12, 12, "merah_gerhana")                             # eclipse
+    c.ellipse(32, 39, 11, 11, "malam")
     return c
 
 
