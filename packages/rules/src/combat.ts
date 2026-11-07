@@ -1,8 +1,10 @@
-import { absorb, tickStatuses, type Statuses } from "./damage";
+import { absorb, attackDamage, tickStatuses, type Statuses } from "./damage";
+import { CARDS } from "./content/cards";
+import type { GameEvent, Target } from "./events";
 import { ENCOUNTERS } from "./content/encounters";
 import { ENEMIES } from "./content/enemies";
 import type { Rng } from "./rng";
-import type { CardInstance, CharacterId, Intent } from "./types";
+import type { CardInstance, CharacterId, Intent, StatusId } from "./types";
 
 export const HAND_SIZE = 4;
 
@@ -147,4 +149,150 @@ export function endTurn(input: CombatState): CombatState {
     if (burn > 0 && isActive(e)) e.hp = Math.max(0, e.hp - burn);
   }
   return checkOutcome(s);
+}
+
+// --- resolveTurn ---------------------------------------------------------------
+
+export interface Pick {
+  cardUid: string;
+  target: Target;
+}
+export type Picks = [Pick[], Pick[]]; // index = player id
+
+const cardOf = (inst: CardInstance) => {
+  const def = CARDS[inst.defId];
+  const v = inst.upgraded ? def.upgraded : def;
+  return { def, effects: v.effects, serempakBonus: v.serempakBonus ?? 0 };
+};
+
+function addStatus(statuses: Statuses, status: StatusId, stacks: number) {
+  statuses[status] = (statuses[status] ?? 0) + stacks;
+}
+
+/** Resolve one turn. Picks must already be valid (see validatePicks). Ends with endTurn. */
+export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { state: CombatState; events: GameEvent[] } {
+  const s = structuredClone(input);
+  const events: GameEvent[] = [];
+  const enemyById = (uid: string) => s.enemies.find((e) => e.uid === uid);
+  const played = s.players.map((p) =>
+    p.pingsan ? [] : picks[p.id].map((pick) => {
+      const inst = p.hand.find((c) => c.uid === pick.cardUid)!;
+      return { pick, inst, ...cardOf(inst) };
+    }),
+  );
+
+  const hitPlayer = (p: PlayerCombat, dmg: number) => {
+    Object.assign(p, absorb(dmg, p));
+    events.push({ t: "damage", to: { kind: "player", id: p.id }, amount: dmg, hpAfter: p.hp });
+    if (p.hp === 0 && !p.pingsan) {
+      p.pingsan = true;
+      events.push({ t: "pingsan", player: p.id });
+    }
+  };
+  const statusOn = (to: Target, status: StatusId, stacks: number) => {
+    const holder = to.kind === "player" ? s.players[to.id] : enemyById(to.uid)!;
+    addStatus(holder.statuses, status, stacks);
+    events.push({ t: "status", to, status, stacks });
+  };
+
+  // Jurus Berantai: a turn with at least one jurus card grows the chain, any other turn breaks it.
+  for (const p of s.players) {
+    if (p.pingsan) continue;
+    p.jurusStacks = played[p.id].some((c) => c.def.tags.includes("jurus")) ? p.jurusStacks + 1 : 0;
+  }
+
+  // Phase 1: Tahan + Bantu, P1 then P2.
+  const buff = [0, 0];
+  for (const p of s.players) {
+    for (const c of played[p.id].filter((c) => c.def.type !== "serang")) {
+      events.push({ t: "card", player: p.id, cardUid: c.inst.uid, target: c.pick.target });
+      const to = c.pick.target.kind === "player" ? s.players[c.pick.target.id] : p;
+      for (const fx of c.effects) {
+        if (fx.kind === "block") {
+          p.block += fx.amount;
+          events.push({ t: "block", player: p.id, amount: fx.amount });
+        } else if (fx.kind === "wayang") {
+          to.wayang += fx.hp;
+          events.push({ t: "wayang", player: to.id, hp: to.wayang });
+        } else if (fx.kind === "buffAttack") {
+          buff[to.id] += fx.amount;
+        } else if (fx.kind === "status") {
+          statusOn(fx.on === "self" ? { kind: "player", id: p.id } : c.pick.target, fx.status, fx.stacks);
+        }
+      }
+    }
+  }
+
+  // Phase 2: Serang, P1 then P2. Serempak compares original targets, before any retarget.
+  const aimed = played.map((cs) => new Set(cs.filter((c) => c.def.type === "serang" && c.pick.target.kind === "enemy").map((c) => (c.pick.target as { uid: string }).uid)));
+  for (const p of s.players) {
+    for (const c of played[p.id].filter((c) => c.def.type === "serang")) {
+      const original = c.pick.target.kind === "enemy" ? c.pick.target.uid : "";
+      let e = enemyById(original);
+      if (!e || !isActive(e)) e = s.enemies.find(isActive);
+      if (!e) continue;
+      const to: Target = { kind: "enemy", uid: e.uid };
+      events.push({ t: "card", player: p.id, cardUid: c.inst.uid, target: to });
+      const together = c.def.tags.includes("serempak") && aimed[1 - p.id].has(original);
+      for (const fx of c.effects) {
+        if (fx.kind === "damage") {
+          const base = fx.amount + p.jurusStacks + buff[p.id] + (together ? c.serempakBonus : 0);
+          const dmg = attackDamage(base, p.statuses, e.statuses, { evading: e.evading });
+          const before = e.hp;
+          e.hp = Math.max(0, e.hp - dmg);
+          p.damageDealt += before - e.hp;
+          events.push({ t: "damage", to, amount: dmg, hpAfter: e.hp });
+          if (e.hp === 0) {
+            events.push({ t: "enemyDied", enemy: e.uid });
+            for (const st of e.stolen) {
+              s.players[st.player].coins += st.amount;
+              events.push({ t: "coinsReturned", player: st.player, amount: st.amount });
+            }
+            e.stolen = [];
+            break;
+          }
+        } else if (fx.kind === "status") {
+          statusOn(fx.on === "self" ? { kind: "player", id: p.id } : to, fx.status, fx.stacks);
+        }
+      }
+    }
+  }
+
+  // Phase 3: enemies act left to right. Nobody left standing → nobody acts.
+  for (const e of s.enemies) {
+    if (!isActive(e) || !e.intent) continue;
+    const it = e.intent;
+    for (const id of it.targets) {
+      const p = s.players[id];
+      if (p.pingsan) continue;
+      const attack = (amount: number) => hitPlayer(p, attackDamage(amount, e.statuses, p.statuses));
+      if (it.kind === "attack") attack(it.amount);
+      else if (it.kind === "status") statusOn({ kind: "player", id }, it.status, it.stacks);
+      else if (it.kind === "attackStatus") {
+        attack(it.amount);
+        statusOn({ kind: "player", id }, it.status, it.stacks);
+      } else if (it.kind === "steal") {
+        if (it.attack > 0) attack(it.attack);
+        const take = Math.min(p.coins, it.amount);
+        p.coins -= take;
+        if (take > 0) e.stolen.push({ player: id, amount: take });
+        events.push({ t: "steal", enemy: e.uid, player: id, amount: take });
+      } else if (it.kind === "drain") {
+        attack(it.amount);
+        e.hp = Math.min(e.maxHp, e.hp + it.amount);
+      } else if (it.kind === "destroyWayang") {
+        if (p.wayang > 0) {
+          p.wayang = 0;
+          events.push({ t: "wayang", player: id, hp: 0 });
+        } else statusOn({ kind: "player", id }, "lemah", it.fallbackLemah);
+      }
+    }
+    if (it.kind === "flee") {
+      e.fled = true;
+      events.push({ t: "flee", enemy: e.uid });
+    }
+    e.patternIndex += 1;
+  }
+
+  return { state: endTurn(s), events };
 }
