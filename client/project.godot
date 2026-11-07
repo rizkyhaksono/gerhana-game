@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Gerhana"
-run/main_scene="res://scenes/preview.tscn"
+run/main_scene="res://scenes/combat.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [display]
@@ -20,10 +20,12 @@ window/size/viewport_width=320
 window/size/viewport_height=180
 window/size/window_width_override=1280
 window/size/window_height_override=720
-window/stretch/mode="viewport"
+window/stretch/mode="canvas_items"
 window/stretch/scale_mode="integer"
 
 [rendering]
+
+2d/snap/snap_2d_transforms_to_pixel=true
 
 textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
