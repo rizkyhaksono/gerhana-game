@@ -1,0 +1,8 @@
+{
+  "name": "gerhana",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "bun test"
+  }
+}
