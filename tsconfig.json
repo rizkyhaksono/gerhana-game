@@ -6,8 +6,7 @@
     "strict": true,
     "noUncheckedIndexedAccess": false,
     "noEmit": true,
-    "skipLibCheck": true,
-    "types": ["bun-types"]
+    "skipLibCheck": true
   },
   "include": ["packages/*/src", "packages/*/test"]
 }
