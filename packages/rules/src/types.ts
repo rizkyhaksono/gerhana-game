@@ -52,3 +52,16 @@ export interface EncounterDef {
   rank: EnemyDef["rank"];
   enemies: string[];
 }
+
+export type PusakaHook =
+  | { on: "combatStart"; effect: Effect } // block or wayang at the start of every combat
+  | { on: "serempakBonus"; amount: number }
+  | { on: "maxHp"; amount: number }
+  | { on: "coinsAfterCombat"; amount: number };
+
+export interface PusakaDef {
+  id: string;
+  nameKey: string;
+  shared: boolean; // also works for the partner
+  hook: PusakaHook;
+}

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { cardName, describeCard, enemyName } from "../src/text";
+import { cardName, describeCard, describePusaka, enemyName, pusakaName } from "../src/text";
+import { PUSAKA } from "../src/content/pusaka";
 import { CARDS } from "../src/content/cards";
 
 test("card names and descriptions come from the effects", () => {
@@ -15,4 +16,10 @@ test("card names and descriptions come from the effects", () => {
 test("every card and enemy has a name", () => {
   for (const id of Object.keys(CARDS)) expect(cardName(id)).not.toBe(id);
   expect(enemyName("babi_ngepet")).toBe("Babi Ngepet");
+});
+
+test("every pusaka has a name and a description", () => {
+  for (const id of Object.keys(PUSAKA)) expect(pusakaName(id)).not.toBe(id);
+  expect(describePusaka("keris_kembar")).toBe("Serempak +2 (kalian berdua)");
+  expect(describePusaka("kemenyan")).toBe("Awal pertarungan: Perisai 6");
 });

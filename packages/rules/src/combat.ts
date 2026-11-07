@@ -3,6 +3,7 @@ import { CARDS } from "./content/cards";
 import type { GameEvent, Target } from "./events";
 import { ENCOUNTERS } from "./content/encounters";
 import { ENEMIES } from "./content/enemies";
+import { activePusaka } from "./content/pusaka";
 import type { Rng } from "./rng";
 import type { CardInstance, CharacterId, Intent, StatusId } from "./types";
 
@@ -61,6 +62,13 @@ export function startCombat(players: [PlayerCombat, PlayerCombat], encounterId: 
     hand: [], discard: [], block: 0, wayang: 0, statuses: {}, jurusStacks: 0, damageDealt: 0,
     pingsan: p.hp <= 0,
   })) as [PlayerCombat, PlayerCombat];
+  for (const p of ps) {
+    for (const { hook } of activePusaka(ps, p.id)) {
+      if (hook.on !== "combatStart") continue;
+      if (hook.effect.kind === "block") p.block += hook.effect.amount;
+      if (hook.effect.kind === "wayang") p.wayang += hook.effect.hp;
+    }
+  }
   const enemies = enc.enemies.map((defId, i): EnemyCombat => {
     const hp = ENEMIES[defId].hp;
     return { uid: `e${i}`, defId, hp, maxHp: hp, statuses: {}, patternIndex: 0, phase: 1, intent: null, stolen: [], evading: false, fled: false };
@@ -234,9 +242,10 @@ export function resolveTurn(input: CombatState, picks: Picks, _rng: Rng): { stat
       const to: Target = { kind: "enemy", uid: e.uid };
       events.push({ t: "card", player: p.id, cardUid: c.inst.uid, target: to });
       const together = c.def.tags.includes("serempak") && aimed[1 - p.id].has(original);
+      const pusakaBonus = activePusaka(s.players, p.id).reduce((n, x) => n + (x.hook.on === "serempakBonus" ? x.hook.amount : 0), 0);
       for (const fx of c.effects) {
         if (fx.kind === "damage") {
-          const base = fx.amount + p.jurusStacks + buff[p.id] + (together ? c.serempakBonus : 0);
+          const base = fx.amount + p.jurusStacks + buff[p.id] + (together ? c.serempakBonus + pusakaBonus : 0);
           const dmg = attackDamage(base, p.statuses, e.statuses, { evading: e.evading });
           const before = e.hp;
           e.hp = Math.max(0, e.hp - dmg);
