@@ -7,3 +7,4 @@ export { ENCOUNTERS } from "./content/encounters";
 export * from "./damage";
 export * from "./events";
 export * from "./combat";
+export * from "./picks";
