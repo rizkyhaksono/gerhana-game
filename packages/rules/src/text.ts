@@ -33,17 +33,15 @@ const effectText = (fx: Effect): string => {
     case "block": return `Perisai ${fx.amount}`;
     case "wayang": return `Wayang ${fx.hp}`;
     case "buffAttack": return `Serangan target +${fx.amount}`;
-    case "status": return `${STATUS[fx.status]} ${fx.stacks}${fx.on === "self" ? " ke diri" : ""}`;
+    case "status": return fx.on === "self" ? `Kamu ${STATUS[fx.status]} ${fx.stacks}` : `${STATUS[fx.status]} ${fx.stacks}`;
   }
 };
 
+/** Rules text short enough for a 60px card. The Jurus tag is shown as an icon on the card, not in words. */
 export function describeCard(def: CardDef, upgraded: boolean): string {
   const v = upgraded ? def.upgraded : def;
-  const parts = [
-    ...(def.tags.includes("jurus") ? ["Jurus"] : []),
-    ...(def.tags.includes("serempak") ? [`Serempak +${v.serempakBonus ?? 0}`] : []),
-    v.effects.map(effectText).join(", "),
-  ];
+  const parts = [v.effects.map(effectText).join(". ")];
+  if (def.tags.includes("serempak")) parts.push(`Bareng +${v.serempakBonus ?? 0}`);
   return parts.join(". ");
 }
 

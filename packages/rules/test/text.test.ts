@@ -10,7 +10,9 @@ test("card names and descriptions come from the effects", () => {
   expect(describeCard(CARDS.tangkis_dalang, false)).toBe("Perisai 5");
   expect(describeCard(CARDS.panggil_wayang, false)).toBe("Wayang 6");
   expect(describeCard(CARDS.restu, false)).toBe("Serangan target +3");
-  expect(describeCard(CARDS.jurus_harimau, false)).toBe("Jurus. Serang 8");
+  expect(describeCard(CARDS.jurus_harimau, false)).toBe("Serang 8");
+  expect(describeCard(CARDS.tusuk_golok, false)).toBe("Serang 14. Kamu Lemah 2");
+  expect(describeCard(CARDS.serbu_bersama, false)).toBe("Serang 6. Bareng +6");
 });
 
 test("every card and enemy has a name", () => {

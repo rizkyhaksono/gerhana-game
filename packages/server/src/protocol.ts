@@ -18,7 +18,7 @@ export type ClientMsg =
   | { type: "leave" }
   | { type: "play_again" };
 
-export interface CardView { uid: string; defId: string; upgraded: boolean; type: string; name: string; text: string }
+export interface CardView { uid: string; defId: string; upgraded: boolean; type: string; name: string; text: string; tags: string[] }
 export interface PlayerView {
   id: 0 | 1; name: string; character: string; hp: number; maxHp: number; block: number; wayang: number;
   statuses: Statuses; coins: number; pingsan: boolean; jurusStacks: number;
@@ -52,7 +52,7 @@ export type ServerMsg =
   | { type: "error"; code: string };
 
 export const cardView = (c: { uid: string; defId: string; upgraded: boolean }): CardView => ({
-  ...c, type: CARDS[c.defId].type, name: cardName(c.defId), text: describeCard(CARDS[c.defId], c.upgraded),
+  ...c, type: CARDS[c.defId].type, tags: CARDS[c.defId].tags, name: cardName(c.defId), text: describeCard(CARDS[c.defId], c.upgraded),
 });
 
 const pusakaView = (id: string): PusakaView => ({ id, name: pusakaName(id), text: describePusaka(id) });

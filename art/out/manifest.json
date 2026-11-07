@@ -20,7 +20,8 @@
   "hutan_tua": "16302a",
   "hutan": "2c5a3f",
   "lumut": "6f9a4a",
-  "gaib": "54e0c8"
+  "gaib": "54e0c8",
+  "tinta": "ffffff"
  },
  "assets": [
   {
@@ -423,17 +424,17 @@
    "group": "cards",
    "name": "kartu_serang",
    "file": "cards/kartu_serang.png",
-   "w": 48,
-   "h": 64,
+   "w": 60,
+   "h": 80,
    "frames": 1,
-   "note": "48x64, art window at (5,14) 38x25"
+   "note": "60x80, art at (18,7), text panel at (6,38) 48x36"
   },
   {
    "group": "cards",
    "name": "kartu_serang_plus",
    "file": "cards/kartu_serang_plus.png",
-   "w": 48,
-   "h": 64,
+   "w": 60,
+   "h": 80,
    "frames": 1,
    "note": "upgraded frame"
   },
@@ -441,17 +442,17 @@
    "group": "cards",
    "name": "kartu_tahan",
    "file": "cards/kartu_tahan.png",
-   "w": 48,
-   "h": 64,
+   "w": 60,
+   "h": 80,
    "frames": 1,
-   "note": "48x64, art window at (5,14) 38x25"
+   "note": "60x80, art at (18,7), text panel at (6,38) 48x36"
   },
   {
    "group": "cards",
    "name": "kartu_tahan_plus",
    "file": "cards/kartu_tahan_plus.png",
-   "w": 48,
-   "h": 64,
+   "w": 60,
+   "h": 80,
    "frames": 1,
    "note": "upgraded frame"
   },
@@ -459,17 +460,17 @@
    "group": "cards",
    "name": "kartu_bantu",
    "file": "cards/kartu_bantu.png",
-   "w": 48,
-   "h": 64,
+   "w": 60,
+   "h": 80,
    "frames": 1,
-   "note": "48x64, art window at (5,14) 38x25"
+   "note": "60x80, art at (18,7), text panel at (6,38) 48x36"
   },
   {
    "group": "cards",
    "name": "kartu_bantu_plus",
    "file": "cards/kartu_bantu_plus.png",
-   "w": 48,
-   "h": 64,
+   "w": 60,
+   "h": 80,
    "frames": 1,
    "note": "upgraded frame"
   },
@@ -477,8 +478,8 @@
    "group": "cards",
    "name": "kartu_belakang",
    "file": "cards/kartu_belakang.png",
-   "w": 48,
-   "h": 64,
+   "w": 60,
+   "h": 80,
    "frames": 1,
    "note": "card back"
   },
@@ -768,7 +769,7 @@
    "w": 16,
    "h": 16,
    "frames": 1,
-   "note": "9-slice, margins 4px"
+   "note": "9-slice, margins 3px"
   },
   {
    "group": "ui",
@@ -777,7 +778,7 @@
    "w": 16,
    "h": 16,
    "frames": 1,
-   "note": "9-slice, margins 4px"
+   "note": "9-slice, margins 3px"
   },
   {
    "group": "ui",
@@ -786,7 +787,7 @@
    "w": 16,
    "h": 16,
    "frames": 1,
-   "note": "9-slice, margins 4px"
+   "note": "9-slice, margins 3px"
   },
   {
    "group": "ui",
@@ -795,43 +796,43 @@
    "w": 16,
    "h": 16,
    "frames": 1,
-   "note": "9-slice, margins 4px"
+   "note": "9-slice, margins 3px"
   },
   {
    "group": "ui",
    "name": "bar_frame",
    "file": "ui/bar_frame.png",
-   "w": 34,
-   "h": 5,
+   "w": 36,
+   "h": 9,
    "frames": 1,
-   "note": "frame 34x5; fills 32x3, scale x to value"
+   "note": "frame 36x9; fills 34x7, scale x to value"
   },
   {
    "group": "ui",
    "name": "bar_hp",
    "file": "ui/bar_hp.png",
-   "w": 32,
-   "h": 3,
+   "w": 34,
+   "h": 7,
    "frames": 1,
-   "note": "frame 34x5; fills 32x3, scale x to value"
+   "note": "frame 36x9; fills 34x7, scale x to value"
   },
   {
    "group": "ui",
    "name": "bar_perisai",
    "file": "ui/bar_perisai.png",
-   "w": 32,
-   "h": 3,
+   "w": 34,
+   "h": 7,
    "frames": 1,
-   "note": "frame 34x5; fills 32x3, scale x to value"
+   "note": "frame 36x9; fills 34x7, scale x to value"
   },
   {
    "group": "ui",
    "name": "bar_wayang",
    "file": "ui/bar_wayang.png",
-   "w": 32,
-   "h": 3,
+   "w": 34,
+   "h": 7,
    "frames": 1,
-   "note": "frame 34x5; fills 32x3, scale x to value"
+   "note": "frame 36x9; fills 34x7, scale x to value"
   },
   {
    "group": "backgrounds",
@@ -859,6 +860,42 @@
    "h": 180,
    "frames": 1,
    "note": "320x180"
+  },
+  {
+   "group": "backgrounds",
+   "name": "layar_menu",
+   "file": "backgrounds/layar_menu.png",
+   "w": 320,
+   "h": 180,
+   "frames": 1,
+   "note": "320x180 title/end backdrop"
+  },
+  {
+   "group": "backgrounds",
+   "name": "layar_won",
+   "file": "backgrounds/layar_won.png",
+   "w": 320,
+   "h": 180,
+   "frames": 1,
+   "note": "320x180 title/end backdrop"
+  },
+  {
+   "group": "backgrounds",
+   "name": "layar_lost",
+   "file": "backgrounds/layar_lost.png",
+   "w": 320,
+   "h": 180,
+   "frames": 1,
+   "note": "320x180 title/end backdrop"
+  },
+  {
+   "group": "font",
+   "name": "aksara_malam",
+   "file": "font/aksara_malam.png",
+   "w": 0,
+   "h": 0,
+   "frames": 1,
+   "note": "84 glyphs, BMFont"
   },
   {
    "group": "mockup",

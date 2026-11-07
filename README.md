@@ -2,9 +2,9 @@
 
 Co-op deckbuilder for two players, set in Nusantara folklore. Design: `docs/superpowers/specs/2026-11-06-gerhana-mvp-design.md`.
 
-## Play the combat slice
+## Play
 
-1. Start the server (Bun):
+1. Start the server (Bun) and keep that terminal open:
 
    ```bash
    bun packages/server/src/server.ts
@@ -15,22 +15,25 @@ Co-op deckbuilder for two players, set in Nusantara folklore. Design: `docs/supe
 2. Open `client/project.godot` in Godot 4.7 and press F5.
 
 3. Choose a mode:
-   - **Main dengan bot:** play alone; the bot plays the Dalang.
-   - **Buat room / Gabung:** two players. The second player types the 6-letter code. For two windows on one machine, run Godot twice.
+   - **Main bersama bot:** play alone; the bot plays the Dalang and follows your map choices.
+   - **Buat room untuk teman / Gabung dengan kode:** two players. The second player types the 6-letter code. For two windows on one machine, run Godot twice.
 
-**Controls:**
+**A run:** 7 map steps, then Banaspati. At each step both players vote a path: fight, elite, rest or shop. After fights you pick a reward card; elites also give a Pusaka.
+
+**Combat controls:**
 - Click a card to pick it. Serang asks for an enemy, Bantu asks for a hero, and Tahan targets yourself.
 - Click a picked card again to drop it.
-- Press **Siap** when you have 2 cards.
-- After 30 seconds the server plays your first two cards for you.
+- Press **Siap** when 2 cards are picked.
+- The moon at the top is the 30-second turn timer. When it turns red, the server plays your first two cards.
+- Hover a card for its full rules.
 
 **Smoke test without clicking:**
 
 ```bash
-GERHANA_AUTOPLAY=1 godot --path client
+GERHANA_AUTOPLAY=1 GERHANA_SHOTS=/tmp/gerhana-shots godot --path client
 ```
 
-This starts a bot game, plays one combat and quits.
+This plays a full bot run in real time, saves one screenshot per screen and quits.
 
 ## Layout
 
