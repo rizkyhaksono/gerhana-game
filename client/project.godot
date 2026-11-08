@@ -9,6 +9,7 @@
 config_version=5
 
 [application]
+config/icon="res://assets/ui/app_icon.png"
 
 config/name="Gerhana"
 run/main_scene="res://scenes/game.tscn"
@@ -24,6 +25,7 @@ window/stretch/mode="viewport"
 window/stretch/scale_mode="integer"
 
 [rendering]
+textures/vram_compression/import_etc2_astc=true
 
 textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
@@ -33,3 +35,4 @@ renderer/rendering_method.mobile="gl_compatibility"
 [gerhana]
 
 server_url="ws://127.0.0.1:8787"
+server_url_mobile="ws://192.168.0.21:8787"
