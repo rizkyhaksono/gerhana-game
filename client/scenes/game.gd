@@ -4,7 +4,7 @@ extends Node2D
 ## collects the player's choices and animates the events the server sends back.
 
 ## Change in Project Settings > Gerhana > Server Url (e.g. ws://192.168.1.10:8787 for a phone on the same Wi-Fi).
-var server_url: String = ProjectSettings.get_setting("gerhana/server_url", "ws://127.0.0.1:8787")
+var server_url: String = ProjectSettings.get_setting("gerhana/server_url_mobile" if OS.get_name() in ["iOS", "Android"] else "gerhana/server_url", "ws://127.0.0.1:8787")
 const GROUND := 112      # feet line inside the background art
 const LIFT := 24         # the combat world is drawn this much higher to make room for the hand
 const HERO_X := [42, 80]
@@ -123,7 +123,7 @@ func _connect_and_send(msg: Dictionary) -> void:
 	await get_tree().create_timer(5.0).timeout
 	if not was_open and world == null and ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		ws.close()
-		_status("Server tidak menjawab. Jalankan: bun packages/server/src/server.ts")
+		_status("Server tidak menjawab di %s" % server_url)
 
 
 ## Try to get the same seat back for two minutes, the time the server holds it.
